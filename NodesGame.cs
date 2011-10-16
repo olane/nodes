@@ -16,8 +16,22 @@ namespace Nodes
     /// </summary>
     public class NodesGame : Microsoft.Xna.Framework.Game
     {
+
+        #region Variables
+
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        GraphicsDevice gDevice;
+
+        int screenWidth = 800;
+        int screenHeight = 600;
+
+        string windowTitle = "Nodes";
+
+        #endregion
+
+
+        #region Initialization
 
         public NodesGame()
         {
@@ -32,11 +46,34 @@ namespace Nodes
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
+            gDevice = graphics.GraphicsDevice;
+
+            //set application settings
+            graphics.PreferredBackBufferWidth = screenWidth;
+            graphics.PreferredBackBufferHeight = screenHeight;
+            graphics.IsFullScreen = false;
+            graphics.ApplyChanges();
+            Window.Title = windowTitle;
+
+
+            //get graphics resources
+
+
+            //get level data
+            //TODO
+
+
+            //load level data into variables
+
 
             //enumerate through any components and initialize them
             base.Initialize();
         }
+
+        #endregion
+
+
+        #region Content Management
 
         /// <summary>
         /// LoadContent will be called once per game and is the place to load
@@ -59,6 +96,11 @@ namespace Nodes
             // TODO: Unload any non ContentManager content here
         }
 
+        #endregion
+
+
+        #region Update
+
         /// <summary>
         /// Allows the game to run logic such as updating the world,
         /// checking for collisions, gathering input, and playing audio.
@@ -70,10 +112,54 @@ namespace Nodes
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
 
-            // TODO: Add your update logic here
+            //run game logic
+            ProcessInput();
+            ProcessAI();
+            UpdateUnits();
+            UpdateNodes();
+            CheckCollisions();
+            UpdatePlayers();
+
 
             base.Update(gameTime);
         }
+
+
+        private void ProcessInput()
+        {
+
+        }
+
+        private void ProcessAI()
+        {
+
+        }
+
+        private void UpdateUnits()
+        {
+
+        }
+
+        private void UpdateNodes()
+        {
+
+        }
+
+        private void CheckCollisions()
+        {
+
+        }
+
+        private void UpdatePlayers()
+        {
+
+        }
+
+
+        #endregion
+
+
+        #region Draw
 
         /// <summary>
         /// This is called when the game should draw itself.
@@ -83,9 +169,41 @@ namespace Nodes
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            // TODO: Add your drawing code here
+            DrawBackground();
+            DrawNodes();
+            DrawUnits();
+            DrawUI();
+            DrawFX();
 
             base.Draw(gameTime);
         }
+
+        private void DrawBackground()
+        {
+
+        }
+
+        private void DrawNodes()
+        {
+
+        }
+
+        private void DrawUnits()
+        {
+
+        }
+
+        private void DrawUI()
+        {
+
+        }
+
+        private void DrawFX()
+        {
+
+        }
+
+        #endregion
+
     }
 }
