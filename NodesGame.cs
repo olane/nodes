@@ -23,10 +23,17 @@ namespace Nodes
         SpriteBatch spriteBatch;
         GraphicsDevice gDevice;
 
-        int screenWidth = 800;
-        int screenHeight = 600;
+        int screenWidth = 1200;
+        int screenHeight = 900;
 
         string windowTitle = "Nodes";
+
+        Texture2D circle50;
+
+
+        List<Node> nodeList;
+        List<Player> playerList;
+        List<Unit> unitList;
 
         #endregion
 
@@ -57,12 +64,14 @@ namespace Nodes
 
 
             //get graphics resources
+            circle50 = Content.Load<Texture2D>("circle50");
 
 
             //get level data
             //TODO
 
-
+            nodeList = new List<Node>();
+            nodeList.Add(new Node(new Vector2(50, 100), 10, 0));
             //load level data into variables
 
 
@@ -169,11 +178,15 @@ namespace Nodes
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
+            spriteBatch.Begin();
+
             DrawBackground();
             DrawNodes();
             DrawUnits();
             DrawUI();
             DrawFX();
+
+            spriteBatch.End();
 
             base.Draw(gameTime);
         }
@@ -185,7 +198,22 @@ namespace Nodes
 
         private void DrawNodes()
         {
+            foreach(Node node in nodeList){
+                int radius = CalcNodeRadius(node.UnitCount);
+                float nodeScale = 50.0f/radius;
+                spriteBatch.Draw(circle50, node.Position, null, GetPlayerColor(node.OwnerId), 0.0f, new Vector2(50, 50), nodeScale, SpriteEffects.None, 0);
+            }
+        }
 
+        private int CalcNodeRadius(int unitCount)
+        {
+            return 15;
+        }
+
+        private Color GetPlayerColor(int ownerId)
+        {
+            //return playerList[ownerId].Color;
+            return Color.Blue;
         }
 
         private void DrawUnits()

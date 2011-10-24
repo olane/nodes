@@ -15,25 +15,36 @@ namespace Nodes
 {
     class Node
     {
+        public Node(Vector2 pos, int units, int owner)
+        {
+            position = pos;
+            unitCount = units;
+            ownerId = owner;
+        }
+
         private Vector2 position;
-        private uint unitCount;
-        private uint ownerId;
+        private int unitCount;
+        private int ownerId;
 
         public Vector2 Position
         {
             get { return position; }
             set { position = value; }
         }
-        public uint UnitCount
+        public int UnitCount
         {
             get { return unitCount; }
             set { unitCount = value; }
         }
-        public uint OwnerId
+        public int OwnerId
         {
             get { return ownerId; }
             set { ownerId = value; }
         }
+
+
+
+        
 
     }
 }
