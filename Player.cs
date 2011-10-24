@@ -12,25 +12,14 @@ namespace Nodes
 {
     class Player
     {
-        private Color color;
-        private bool isAlive;
-        private bool isHuman;
-
         public Color Color
-        {
-            get { return color; }
-            set { color = value; }
-        }
+        { get; set; }
+
         public bool IsAlive
-        {
-            get { return isAlive; }
-            set { isAlive = value; }
-        }
+        { get; set; }
+
         public bool IsHuman
-        {
-            get { return isHuman; }
-            set { isHuman = value; }
-        }
+        { get; set; }
 
     }
 }

@@ -71,7 +71,7 @@ namespace Nodes
             //TODO
 
             nodeList = new List<Node>();
-            nodeList.Add(new Node(new Vector2(50, 100), 10, 0));
+            nodeList.Add(new Node(new Vector2(50, 100), 50, 0));
             //load level data into variables
 
 
@@ -200,14 +200,14 @@ namespace Nodes
         {
             foreach(Node node in nodeList){
                 int radius = CalcNodeRadius(node.UnitCount);
-                float nodeScale = 50.0f/radius;
+                float nodeScale = radius/50.0f;
                 spriteBatch.Draw(circle50, node.Position, null, GetPlayerColor(node.OwnerId), 0.0f, new Vector2(50, 50), nodeScale, SpriteEffects.None, 0);
             }
         }
 
         private int CalcNodeRadius(int unitCount)
         {
-            return 15;
+            return 5 + unitCount;
         }
 
         private Color GetPlayerColor(int ownerId)
