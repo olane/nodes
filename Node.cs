@@ -12,12 +12,7 @@ namespace Nodes
 {
     class Node
     {
-        public Node(Vector2 pos, int units, int owner)
-        {
-            Position = pos;
-            UnitCount = units;
-            OwnerId = owner;
-        }     
+        private float _unitProgress;
 
         public Vector2 Position
         { get; set; }
@@ -28,8 +23,41 @@ namespace Nodes
         public int OwnerId
         { get; set; }
 
+        public float BuildSpeed
+        { get; set; }
 
+        public float UnitProgress
+        {
+            get
+            {
+                return _unitProgress;
+            }
+            set
+            {
+                if (value >= 1)
+                {
+                    _unitProgress = value % 1;
+                    UnitCount += 1;
+                }
+                else
+                {
+                    _unitProgress = value;
+                }
+            }
+        }
 
+        public bool Selected
+        { get; set; }
+
+        public Node(Vector2 pos, int units, int owner, float speed, Random r)
+        {
+            UnitProgress = (float)(r.NextDouble());
+            Position = pos;
+            UnitCount = units;
+            OwnerId = owner;
+            BuildSpeed = speed;
+            Selected = false;
+        }
         
 
     }

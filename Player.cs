@@ -21,5 +21,12 @@ namespace Nodes
         public bool IsHuman
         { get; set; }
 
+
+        public Player(Color color, bool isAlive, bool isHuman)
+        {
+            Color = color;
+            IsAlive = isAlive;
+            IsHuman = isHuman;
+        }
     }
 }
