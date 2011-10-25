@@ -88,7 +88,7 @@ namespace Nodes
             nodeList.Add(new Node(new Vector2(200, 400), 10, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
             nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.03f, r));
-            nodeList.Add(new Node(new Vector2(300, 550), 15, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.005f, r));
             nodeList.Add(new Node(new Vector2(600, 300), 40, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(550, 120), 32, -1, 0.005f, r));
@@ -188,19 +188,28 @@ namespace Nodes
                         Node selectedNode = getSelectedNode();
 
                         //check what we should do with the clicked node
-                        if (selectedNode == null && node.OwnerId == humanOwnerId)
+                        if (selectedNode == null)
                         {
-                            node.Selected = true;
+                            if (node.OwnerId == humanOwnerId)
+                            {
+                                node.Selected = true;
+                            }
                         }
-                        else if (selectedNode != null && selectedNode != node)
+                        else
                         {
-                            spawnUnits(selectedNode, node);
-                            selectedNode.Selected = false;
+                            if (selectedNode != node)
+                            {
+                                spawnUnits(selectedNode, node);
+                                selectedNode.Selected = false;
+                            }
+                            else
+                            {
+                                selectedNode.Selected = false;
+                            }
                         }
-                        else if(selectedNode == node)
-                        {
-                            selectedNode.Selected = false;
-                        }
+
+                        //no need to check the other nodes for clicks, so break the loop
+                        break;
                     }
                 }
             }
@@ -273,9 +282,6 @@ namespace Nodes
 
         }
 
-
-
-
         private void DrawNodes()
         {
             foreach(Node node in nodeList){
@@ -321,15 +327,15 @@ namespace Nodes
                 if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, CalcNodeRadius(node.UnitCount, node.UnitProgress)))
                 {
                     //mouse is over a node
-                    if (selectedNode == null && node.OwnerId == humanOwnerId)
+                    if (node.OwnerId == humanOwnerId)
                     {
-                        //node belongs to player and player has not selected a node, so border the node
+                        //node belongs to player, so border the node
                         DrawNodeBorder(node, Color.White, 2);
 
                     }
                     else if (selectedNode != null && node.OwnerId != humanOwnerId)
                     {
-                        //node doesn't belong to player and player has already selected a node, so border the node
+                        //node doesn't belong to player but player has already selected a node, so border the node
                         DrawNodeBorder(node, Color.White, 2);
                     }
                 }
