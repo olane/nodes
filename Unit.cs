@@ -13,7 +13,7 @@ namespace Nodes
     class Unit
     {
 
-        public uint OwnerId
+        public int OwnerId
         { get; set; }
 
         public Vector2 Position
@@ -22,8 +22,16 @@ namespace Nodes
         public Vector2 Velocity
         { get; set; }
 
-        public uint DestinationId
+        public int DestinationId
         { get; set; }
+
+        public Unit(int owner, Vector2 pos, Vector2 vel, int destination)
+        {
+            OwnerId = owner;
+            Position = pos;
+            Velocity = vel;
+            DestinationId = destination;
+        }
 
     }
 }

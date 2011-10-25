@@ -43,6 +43,7 @@ namespace Nodes
         List<Unit> unitList;
 
         int humanOwnerId = 0;
+        float attackProportion = 0.5f; //proportion of units that will be sent from an attacking node
 
         MouseState previousMouseState; //holds last frame's mouse state
         MouseState currentMouseState;  //holds this frame's mouse state
@@ -182,7 +183,7 @@ namespace Nodes
             {
                 foreach (Node node in nodeList)
                 {
-                    if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, CalcNodeRadius(node.UnitCount, node.UnitProgress)))
+                    if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, node.CalcNodeRadius()))
                     {
                         //mouse is clicking a node
                         Node selectedNode = getSelectedNode();
@@ -287,7 +288,7 @@ namespace Nodes
             foreach(Node node in nodeList){
 
                 //draw circle
-                float radius = CalcNodeRadius(node.UnitCount, node.UnitProgress);
+                float radius = node.CalcNodeRadius();
                 float nodeScale = radius/300.0f;
                 Texture2D nodeTexture = DrawCircle((int)Math.Round(radius));
 
@@ -321,10 +322,11 @@ namespace Nodes
                 DrawLine(blank, 2f, Color.White, selectedNode.Position, new Vector2(currentMouseState.X, currentMouseState.Y));
             }
 
+
             //if a node is moused over, draw a border around it
             foreach (Node node in nodeList)
             {
-                if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, CalcNodeRadius(node.UnitCount, node.UnitProgress)))
+                if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, node.CalcNodeRadius()))
                 {
                     //mouse is over a node
                     if (node.OwnerId == humanOwnerId)
@@ -340,6 +342,8 @@ namespace Nodes
                     }
                 }
             }
+
+
         }
 
         private void DrawFX()
@@ -352,22 +356,9 @@ namespace Nodes
 
         #region Other methods
 
-        private float CalcNodeRadius(int unitCount, float unitProgress)
-        {
-            return 5 + unitCount + unitProgress;
-        }
+        #region Geometry and collisions
 
-        private Color GetPlayerColor(int ownerId)
-        {
-            if (ownerId >= 0)
-            {
-                return playerList[ownerId].Color;
-            }
-            else
-            {
-                return NeutralColor;
-            }
-        }
+        
 
         public bool CheckPointCircleCollision(float pointX, float pointY, float circleX, float circleY, float radius)
         {
@@ -384,23 +375,9 @@ namespace Nodes
 
         }
 
-        private void spawnUnits(Node sourceNode, Node destinationNode)
-        {
-            
+        #endregion
 
-        }
-
-        private Node getSelectedNode()
-        {
-            foreach (Node node in nodeList)
-            {
-                if (node.Selected)
-                {
-                    return node;
-                }
-            }
-            return null;
-        }
+        #region Graphics
 
         //credit: http://www.xnawiki.com/index.php?title=Drawing_2D_lines_without_using_primitives
         void DrawLine(Texture2D blank, float width, Color color, Vector2 point1, Vector2 point2)
@@ -413,7 +390,8 @@ namespace Nodes
                        SpriteEffects.None, 0);
         }
 
-        public Texture2D DrawCircle(float radius){
+        public Texture2D DrawCircle(float radius)
+        {
 
             int boxsize = (int)Math.Round(radius * 2) + 2;
             Texture2D texture = new Texture2D(gDevice, boxsize, boxsize);
@@ -453,7 +431,7 @@ namespace Nodes
             for (int i = 0; i < data.Length; i++)
             {
                 if (CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, radius + thickness / 2) &&
-                    !CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, radius-thickness / 2))
+                    !CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, radius - thickness / 2))
                 {
                     //if pixel is in the circle, colour it
                     data[i] = Color.White;
@@ -471,10 +449,60 @@ namespace Nodes
 
         private void DrawNodeBorder(Node node, Color color, float thickness)
         {
-            float radius = CalcNodeRadius(node.UnitCount, node.UnitProgress);
+            float radius = node.CalcNodeRadius();
             Texture2D border = DrawCircleBorder(radius, thickness);
 
             spriteBatch.Draw(border, node.Position, null, Color.White, 0.0f, new Vector2(radius + 1, radius + 1), 1, SpriteEffects.None, 0);
+        }
+
+        #endregion
+
+
+        private void spawnUnits(Node sourceNode, Node destinationNode)
+        {
+            if (sourceNode.UnitCount > 1)
+            {
+                //calculate how many units to send
+                int numUnits = (int)Math.Round(sourceNode.UnitCount * attackProportion);
+
+                sourceNode.UnitCount -= numUnits;
+
+                for (int i = 0; i < numUnits; i++)
+                {
+                    float radius = sourceNode.CalcNodeRadius() + 5;
+                    float angle = (float)(r.NextDouble() * Math.PI * 2);
+                    float x = (float)(sourceNode.Position.X + radius * Math.Cos(angle));
+                    float y = (float)(sourceNode.Position.Y + radius * Math.Sin(angle));
+
+                    Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(0, 0), destinationNode.OwnerId);
+                    unitList.Add(newUnit);
+                }
+            }
+
+        }
+
+        private Node getSelectedNode()
+        {
+            foreach (Node node in nodeList)
+            {
+                if (node.Selected)
+                {
+                    return node;
+                }
+            }
+            return null;
+        }
+        
+        private Color GetPlayerColor(int ownerId)
+        {
+            if (ownerId >= 0)
+            {
+                return playerList[ownerId].Color;
+            }
+            else
+            {
+                return NeutralColor;
+            }
         }
 
 

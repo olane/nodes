@@ -58,7 +58,11 @@ namespace Nodes
             BuildSpeed = speed;
             Selected = false;
         }
-        
+
+        public float CalcNodeRadius()
+        {
+            return 5 + UnitCount + UnitProgress;
+        }
 
     }
 }
