@@ -44,6 +44,11 @@ namespace Nodes
 
         int humanOwnerId = 0;
         float attackProportion = 0.5f; //proportion of units that will be sent from an attacking node
+        float maxUnitVelocity = 3;
+        float maxUnitVelocitySquared;
+        float unitAccel = 0.1f;
+        float unitStartVelocity = 0.3f;
+        float unitFriction = 0.995f;
 
         MouseState previousMouseState; //holds last frame's mouse state
         MouseState currentMouseState;  //holds this frame's mouse state
@@ -78,6 +83,7 @@ namespace Nodes
             graphics.ApplyChanges();
             Window.Title = windowTitle;
 
+            maxUnitVelocitySquared = maxUnitVelocity * maxUnitVelocity;
 
             //get level data
             //TODO
@@ -86,10 +92,10 @@ namespace Nodes
             //load level data into variables
 
             nodeList = new List<Node>();
-            nodeList.Add(new Node(new Vector2(200, 400), 10, 0, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(200, 400), 30, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
             nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.03f, r));
-            nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(600, 300), 40, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(550, 120), 32, -1, 0.005f, r));
@@ -228,6 +234,44 @@ namespace Nodes
 
         private void UpdateUnits()
         {
+            List<Unit> attackList = new List<Unit>();
+
+            foreach (Unit unit in unitList)
+            {
+                
+                Node destination = nodeList[unit.DestinationId];
+
+                //check collision with destination
+                if (CheckPointCircleCollision(unit.Position.X, unit.Position.Y, destination.Position.X, destination.Position.Y, destination.CalcNodeRadius()))
+                {
+                    attackList.Add(unit);
+                }
+
+
+                //update velocity
+                unit.Velocity *= unitFriction;
+                Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
+                direction.Normalize();
+                unit.Velocity += direction * unitAccel;
+                
+                
+                //make sure velocity doesn't go above the maximum
+                if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
+                {
+                    Vector2 dir = unit.Velocity;
+                    dir.Normalize();
+                    unit.Velocity = dir * maxUnitVelocity;
+                }
+
+                //update position
+                unit.Position += unit.Velocity;
+            }
+
+            foreach (Unit unit in attackList)
+            {
+                attackNode(unit, nodeList[unit.DestinationId]);
+            }
+
 
         }
 
@@ -290,7 +334,6 @@ namespace Nodes
                 //draw circle
                 float radius = node.CalcNodeRadius();
                 float nodeScale = radius/300.0f;
-                Texture2D nodeTexture = DrawCircle((int)Math.Round(radius));
 
                 spriteBatch.Draw(circle300, node.Position, null, GetPlayerColor(node.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
 
@@ -310,7 +353,19 @@ namespace Nodes
 
         private void DrawUnits()
         {
+            foreach (Unit unit in unitList)
+            {
 
+                //draw circle
+                float radius = 5;
+                float nodeScale = radius / 300.0f;
+                Texture2D nodeTexture = DrawCircle((int)Math.Round(radius));
+
+                spriteBatch.Draw(circle300, unit.Position, null, GetPlayerColor(unit.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
+
+                
+
+            }
         }
 
         private void DrawUI()
@@ -465,20 +520,65 @@ namespace Nodes
                 //calculate how many units to send
                 int numUnits = (int)Math.Round(sourceNode.UnitCount * attackProportion);
 
+                //subtract the units from the node
                 sourceNode.UnitCount -= numUnits;
 
+
+                //work out starting velocity (must be lower for nearer targets or units may miss)
+                //float distance = (sourceNode.Position - destinationNode.Position).LengthSquared();
+                //float startVel = unitStartVelocity * distance * 0.05f;
+
+                //add the units to the active units list
                 for (int i = 0; i < numUnits; i++)
                 {
-                    float radius = sourceNode.CalcNodeRadius() + 5;
+                    float radius = sourceNode.CalcNodeRadius() - 5;
                     float angle = (float)(r.NextDouble() * Math.PI * 2);
-                    float x = (float)(sourceNode.Position.X + radius * Math.Cos(angle));
-                    float y = (float)(sourceNode.Position.Y + radius * Math.Sin(angle));
+                    float relativeX = (float)(radius * Math.Cos(angle));
+                    float relativeY = (float)(radius * Math.Sin(angle));
+                    float x = sourceNode.Position.X + relativeX;
+                    float y = sourceNode.Position.Y + relativeY;
 
-                    Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(0, 0), destinationNode.OwnerId);
+
+                    float xVel = relativeX * unitStartVelocity;
+                    float yVel = relativeY * unitStartVelocity;
+
+                    Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode));
                     unitList.Add(newUnit);
                 }
             }
 
+        }
+
+        private void attackNode(Unit attackingUnit, Node defendingNode)
+        {
+            unitList.Remove(attackingUnit);
+
+            if (attackingUnit.OwnerId != defendingNode.OwnerId)
+            {
+                if (defendingNode.UnitCount == 1)
+                {
+                    defendingNode.OwnerId = attackingUnit.OwnerId;
+                }
+                else
+                {
+                    defendingNode.UnitCount -= 1;
+                }
+            }
+            else
+            {
+                defendingNode.UnitCount += 1;
+            }
+        }
+
+        public int getNodeId(Node node)
+        {
+            int id = nodeList.FindIndex(
+                delegate(Node comparedNode) {
+                    return (comparedNode.Position.X == node.Position.X && comparedNode.Position.Y == node.Position.Y); 
+                }
+            );
+
+            return id;
         }
 
         private Node getSelectedNode()
@@ -505,6 +605,7 @@ namespace Nodes
             }
         }
 
+        
 
         #endregion
 

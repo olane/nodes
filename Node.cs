@@ -10,7 +10,7 @@ using Microsoft.Xna.Framework.Media;
 
 namespace Nodes
 {
-    class Node
+    public class Node
     {
         private float _unitProgress;
 

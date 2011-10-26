@@ -4,5 +4,4 @@ C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debu
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Microsoft.Xna.Framework.RuntimeProfile.txt
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.exe
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.pdb
-C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Content\circle50.xnb
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Content\Trebuchet.xnb

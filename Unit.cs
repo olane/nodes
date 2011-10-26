@@ -10,7 +10,7 @@ using Microsoft.Xna.Framework.Media;
 
 namespace Nodes
 {
-    class Unit
+    public class Unit
     {
 
         public int OwnerId

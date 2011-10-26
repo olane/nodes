@@ -10,7 +10,7 @@ using Microsoft.Xna.Framework.Media;
 
 namespace Nodes
 {
-    class Player
+    public class Player
     {
         public Color Color
         { get; set; }
