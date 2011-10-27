@@ -61,7 +61,9 @@ namespace Nodes
 
         public float CalcNodeRadius()
         {
-            return 5 + UnitCount + UnitProgress;
+            float x = UnitCount + UnitProgress;
+            return (float)(140/(1 + Math.Pow(2, -x/25)) - 65);
+            //return 5 + UnitCount + UnitProgress;
         }
 
     }

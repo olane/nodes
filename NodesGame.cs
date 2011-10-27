@@ -46,9 +46,13 @@ namespace Nodes
         float attackProportion = 0.5f; //proportion of units that will be sent from an attacking node
         float maxUnitVelocity = 3;
         float maxUnitVelocitySquared;
-        float unitAccel = 0.1f;
+        float unitAccel = 0.15f;
         float unitStartVelocity = 0.3f;
         float unitFriction = 0.995f;
+
+        float unitRepulsionLimit = 150;
+        //float unitRepulsionLimitSquared;
+        float unitRepulsionConstant = 250f;
 
         MouseState previousMouseState; //holds last frame's mouse state
         MouseState currentMouseState;  //holds this frame's mouse state
@@ -76,7 +80,7 @@ namespace Nodes
             gDevice = graphics.GraphicsDevice;
 
             //set application settings
-            graphics.PreferMultiSampling = true;
+            //graphics.PreferMultiSampling = true;
             graphics.PreferredBackBufferWidth = screenWidth;
             graphics.PreferredBackBufferHeight = screenHeight;
             graphics.IsFullScreen = false;
@@ -84,6 +88,7 @@ namespace Nodes
             Window.Title = windowTitle;
 
             maxUnitVelocitySquared = maxUnitVelocity * maxUnitVelocity;
+            //unitRepulsionLimitSquared = unitRepulsionLimit * unitRepulsionLimit;
 
             //get level data
             //TODO
@@ -94,7 +99,7 @@ namespace Nodes
             nodeList = new List<Node>();
             nodeList.Add(new Node(new Vector2(200, 400), 30, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.03f, r));
+            nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.02f, r));
             nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(600, 300), 40, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
@@ -102,8 +107,8 @@ namespace Nodes
             nodeList.Add(new Node(new Vector2(700, 500), 37, -1, 0.005f, r));
 
             playerList = new List<Player>();
-            playerList.Add(new Player(Color.Red, true, true));
-            playerList.Add(new Player(Color.Blue, true, false));
+            playerList.Add(new Player(Color.Blue, true, true));
+            playerList.Add(new Player(Color.Purple, true, false));
             playerList.Add(new Player(Color.Green, true, false));
 
             unitList = new List<Unit>();
@@ -189,7 +194,7 @@ namespace Nodes
             {
                 foreach (Node node in nodeList)
                 {
-                    if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, node.CalcNodeRadius()))
+                    if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
                     {
                         //mouse is clicking a node
                         Node selectedNode = getSelectedNode();
@@ -242,17 +247,52 @@ namespace Nodes
                 Node destination = nodeList[unit.DestinationId];
 
                 //check collision with destination
-                if (CheckPointCircleCollision(unit.Position.X, unit.Position.Y, destination.Position.X, destination.Position.Y, destination.CalcNodeRadius()))
+                if (CheckPointCircleCollision(unit.Position, destination.Position, destination.CalcNodeRadius()))
                 {
                     attackList.Add(unit);
                 }
 
-
-                //update velocity
+                //add friction
                 unit.Velocity *= unitFriction;
+
+                //add attractive force to destination to velocity
                 Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
                 direction.Normalize();
                 unit.Velocity += direction * unitAccel;
+
+
+                //add repulsive force from other nodes to velocity
+
+                
+                foreach (Node node in nodeList)
+                {
+                    //don't repel from destination
+                    if (node != destination)
+                    {
+                        float distanceSquared = (node.Position - unit.Position).LengthSquared();
+                        float nodeRadius = node.CalcNodeRadius();
+
+                        //first find nearby nodes
+                        if (distanceSquared < (unitRepulsionLimit + nodeRadius) * (unitRepulsionLimit + nodeRadius))
+                        {
+                            //find the direction of repulsion and normalize
+                            direction = new Vector2(unit.Position.X - node.Position.X, unit.Position.Y - node.Position.Y);
+                            direction.Normalize();
+
+                            
+                            if (distanceSquared < nodeRadius * nodeRadius)
+                            {
+                                //bounce if colliding
+                                unit.Velocity += direction * 1000f;
+                            }
+                            else
+                            {
+                                //repel if not colliding
+                                unit.Velocity += direction * unitRepulsionConstant / (distanceSquared - nodeRadius * nodeRadius);
+                            }
+                        }
+                    }
+                }
                 
                 
                 //make sure velocity doesn't go above the maximum
@@ -381,7 +421,7 @@ namespace Nodes
             //if a node is moused over, draw a border around it
             foreach (Node node in nodeList)
             {
-                if (CheckPointCircleCollision(currentMouseState.X, currentMouseState.Y, node.Position.X, node.Position.Y, node.CalcNodeRadius()))
+                if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
                 {
                     //mouse is over a node
                     if (node.OwnerId == humanOwnerId)
@@ -395,6 +435,11 @@ namespace Nodes
                         //node doesn't belong to player but player has already selected a node, so border the node
                         DrawNodeBorder(node, Color.White, 2);
                     }
+                }
+
+                if (node.Selected == true)
+                {
+                    DrawNodeBorder(node, Color.White, 2);
                 }
             }
 
@@ -411,13 +456,13 @@ namespace Nodes
 
         #region Other methods
 
+
+
         #region Geometry and collisions
 
-        
-
-        public bool CheckPointCircleCollision(float pointX, float pointY, float circleX, float circleY, float radius)
+        public bool CheckPointCircleCollision(Vector2 point, Vector2 circle, float radius)
         {
-            float distanceSquared = (pointX - circleX) * (pointX - circleX) + (pointY - circleY) * (pointY - circleY);
+            float distanceSquared = (point.X - circle.X) * (point.X - circle.X) + (point.Y - circle.Y) * (point.Y - circle.Y);
 
             if ((radius * radius) >= distanceSquared)
             {
@@ -432,9 +477,20 @@ namespace Nodes
 
         #endregion
 
+
+
         #region Graphics
 
-        //credit: http://www.xnawiki.com/index.php?title=Drawing_2D_lines_without_using_primitives
+        
+        /// <summary>
+        /// Draws a line between two points
+        /// credit: http://www.xnawiki.com/index.php?title=Drawing_2D_lines_without_using_primitives
+        /// </summary>
+        /// <param name="blank">A 1x1 white texture</param>
+        /// <param name="width">Thickness of the line (pixels)</param>
+        /// <param name="color">Color of the line</param>
+        /// <param name="point1"></param>
+        /// <param name="point2"></param>
         void DrawLine(Texture2D blank, float width, Color color, Vector2 point1, Vector2 point2)
         {
             float angle = (float)Math.Atan2(point2.Y - point1.Y, point2.X - point1.X);
@@ -445,6 +501,11 @@ namespace Nodes
                        SpriteEffects.None, 0);
         }
 
+
+        /// <summary>
+        /// Returns a texture containing a circle of white pixels
+        /// </summary>
+        /// <param name="radius">Radius of the circle</param>
         public Texture2D DrawCircle(float radius)
         {
 
@@ -453,11 +514,12 @@ namespace Nodes
 
             Color[] data = new Color[boxsize * boxsize];
 
+            Vector2 circleCentre = new Vector2(radius + 1, radius + 1);
 
             //test each pixel
             for (int i = 0; i < data.Length; i++)
             {
-                if (CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, (float)radius))
+                if (CheckPointCircleCollision(new Vector2(i % boxsize, (i - i % boxsize) / boxsize), circleCentre, (float)radius))
                 {
                     //if pixel is in the circle, colour it
                     data[i] = Color.White;
@@ -473,6 +535,12 @@ namespace Nodes
             return texture;
         }
 
+
+        /// <summary>
+        /// Returns a texture containing a circular ring of white pixels
+        /// </summary>
+        /// <param name="radius">Radius of the ring</param>
+        /// <param name="thickness">Thickness of the ring</param>
         public Texture2D DrawCircleBorder(float radius, float thickness)
         {
 
@@ -481,14 +549,15 @@ namespace Nodes
 
             Color[] data = new Color[boxsize * boxsize];
 
+            Vector2 circleCentre = new Vector2(radius + 1, radius + 1);
 
             //test each pixel
             for (int i = 0; i < data.Length; i++)
             {
-                if (CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, radius + thickness / 2) &&
-                    !CheckPointCircleCollision(i % boxsize, (i - i % boxsize) / boxsize, radius + 1, radius + 1, radius - thickness / 2))
+                if (CheckPointCircleCollision(new Vector2(i % boxsize, (i - i % boxsize) / boxsize), circleCentre, radius + thickness / 2) &&
+                    !CheckPointCircleCollision(new Vector2(i % boxsize, (i - i % boxsize) / boxsize), circleCentre, radius - thickness / 2))
                 {
-                    //if pixel is in the circle, colour it
+                    //if pixel is in the outer circle but not in the inner circle, colour it
                     data[i] = Color.White;
                 }
                 else
@@ -502,17 +571,31 @@ namespace Nodes
             return texture;
         }
 
+
+        /// <summary>
+        /// Draws a border around a given node
+        /// </summary>
+        /// <param name="node">The node to draw a border around</param>
+        /// <param name="color">The color of the border</param>
+        /// <param name="thickness">The thickness of the border</param>
         private void DrawNodeBorder(Node node, Color color, float thickness)
         {
             float radius = node.CalcNodeRadius();
             Texture2D border = DrawCircleBorder(radius, thickness);
 
-            spriteBatch.Draw(border, node.Position, null, Color.White, 0.0f, new Vector2(radius + 1, radius + 1), 1, SpriteEffects.None, 0);
+            spriteBatch.Draw(border, node.Position, null, color, 0.0f, new Vector2(radius + 1, radius + 1), 1, SpriteEffects.None, 0);
         }
 
         #endregion
 
 
+
+
+        /// <summary>
+        /// Spawns units to travel from one node to another
+        /// </summary>
+        /// <param name="sourceNode">The node to spawn units at</param>
+        /// <param name="destinationNode">The destination node for the units</param>
         private void spawnUnits(Node sourceNode, Node destinationNode)
         {
             if (sourceNode.UnitCount > 1)
@@ -523,25 +606,24 @@ namespace Nodes
                 //subtract the units from the node
                 sourceNode.UnitCount -= numUnits;
 
-
-                //work out starting velocity (must be lower for nearer targets or units may miss)
-                //float distance = (sourceNode.Position - destinationNode.Position).LengthSquared();
-                //float startVel = unitStartVelocity * distance * 0.05f;
+                //spawn units in a circle slightly inside the spawning node
+                float radius = sourceNode.CalcNodeRadius() - 5;
 
                 //add the units to the active units list
                 for (int i = 0; i < numUnits; i++)
                 {
-                    float radius = sourceNode.CalcNodeRadius() - 5;
+                    //work out a random place on the circle to spawn this unit on
                     float angle = (float)(r.NextDouble() * Math.PI * 2);
                     float relativeX = (float)(radius * Math.Cos(angle));
                     float relativeY = (float)(radius * Math.Sin(angle));
                     float x = sourceNode.Position.X + relativeX;
                     float y = sourceNode.Position.Y + relativeY;
 
-
+                    //add an initial velocity directly away from the source node
                     float xVel = relativeX * unitStartVelocity;
                     float yVel = relativeY * unitStartVelocity;
 
+                    //make the unit and add it to the list
                     Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode));
                     unitList.Add(newUnit);
                 }
@@ -549,6 +631,12 @@ namespace Nodes
 
         }
 
+
+        /// <summary>
+        /// Handles the logic for when a unit reaches its destination
+        /// </summary>
+        /// <param name="attackingUnit">The unit</param>
+        /// <param name="defendingNode">The destination node</param>
         private void attackNode(Unit attackingUnit, Node defendingNode)
         {
             unitList.Remove(attackingUnit);
@@ -570,6 +658,11 @@ namespace Nodes
             }
         }
 
+
+        /// <summary>
+        /// Returns a node's position in nodeList given the node object (uses node's x and y to identify it)
+        /// </summary>
+        /// <param name="node">Node to identify.</param>
         public int getNodeId(Node node)
         {
             int id = nodeList.FindIndex(
@@ -581,6 +674,10 @@ namespace Nodes
             return id;
         }
 
+
+        /// <summary>
+        /// Returns the first node in nodeList whose Selected field = true
+        /// </summary>
         private Node getSelectedNode()
         {
             foreach (Node node in nodeList)
@@ -592,12 +689,17 @@ namespace Nodes
             }
             return null;
         }
-        
-        private Color GetPlayerColor(int ownerId)
+
+
+        /// <summary>
+        /// Returns a player color given the player's ID
+        /// </summary>
+        /// <param name="playerId">ID of player to return color of</param>
+        private Color GetPlayerColor(int playerId)
         {
-            if (ownerId >= 0)
+            if (playerId >= 0)
             {
-                return playerList[ownerId].Color;
+                return playerList[playerId].Color;
             }
             else
             {
