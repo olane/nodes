@@ -234,8 +234,40 @@ namespace Nodes
 
         private void ProcessAI()
         {
-
+            foreach (Player player in playerList)
+            {
+                if (!player.IsHuman)
+                {
+                    foreach (Node node in nodeList)
+                    {
+                        if (node.OwnerId != -1)
+                        {
+                            if (player == playerList[node.OwnerId] && node.UnitCount > 50)
+                            {
+                                spawnUnits(node, getWeakestEnemyNode(player));
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+        private Node getWeakestEnemyNode(Player player)
+        {
+            Node output = null;
+            foreach (Node node in nodeList)
+            {
+                if (node.OwnerId == -1 || playerList[node.OwnerId] != player)
+                {
+                    if (output == null || output.UnitCount > node.UnitCount)
+                    {
+                        output = node;
+                    }
+                }
+            }
+            return output;
+        }
+
 
         private void UpdateUnits()
         {
@@ -598,7 +630,7 @@ namespace Nodes
         /// <param name="destinationNode">The destination node for the units</param>
         private void spawnUnits(Node sourceNode, Node destinationNode)
         {
-            if (sourceNode.UnitCount > 1)
+            if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1)
             {
                 //calculate how many units to send
                 int numUnits = (int)Math.Round(sourceNode.UnitCount * attackProportion);
