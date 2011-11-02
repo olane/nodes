@@ -32,6 +32,12 @@ namespace Nodes
 
         Color NeutralColor = new Color(100,100,100,255);
 
+        /*
+         * 0 -> potential field
+         * 1 -> kinetic potential
+         */
+        int pathfindingMethod = 0;
+
         SpriteFont Trebuchet;
         Texture2D circle50;
         Texture2D circle300;
@@ -271,18 +277,51 @@ namespace Nodes
 
         private void UpdateUnits()
         {
+            switch (pathfindingMethod)
+            {
+                case 0:
+                    potentialFieldPaths();
+                    break;
+                case 1:
+                    kineticPotentialPaths();
+                    break;
+            }
+            
+
+
+            
             List<Unit> attackList = new List<Unit>();
 
+            //check collision with destination
             foreach (Unit unit in unitList)
             {
-                
                 Node destination = nodeList[unit.DestinationId];
 
-                //check collision with destination
                 if (CheckPointCircleCollision(unit.Position, destination.Position, destination.CalcNodeRadius()))
                 {
                     attackList.Add(unit);
                 }
+            }
+
+            //deal with nodes that have reached their destination
+            foreach (Unit unit in attackList)
+            {
+                attackNode(unit, nodeList[unit.DestinationId]);
+            }
+
+
+        }
+
+        private void potentialFieldPaths()
+        {
+        }
+
+        private void kineticPotentialPaths()
+        {
+            foreach (Unit unit in unitList)
+            {
+
+                Node destination = nodeList[unit.DestinationId];
 
                 //add friction
                 unit.Velocity *= unitFriction;
@@ -294,8 +333,6 @@ namespace Nodes
 
 
                 //add repulsive force from other nodes to velocity
-
-                
                 foreach (Node node in nodeList)
                 {
                     //don't repel from destination
@@ -311,7 +348,7 @@ namespace Nodes
                             direction = new Vector2(unit.Position.X - node.Position.X, unit.Position.Y - node.Position.Y);
                             direction.Normalize();
 
-                            
+
                             if (distanceSquared < nodeRadius * nodeRadius)
                             {
                                 //bounce if colliding
@@ -325,8 +362,8 @@ namespace Nodes
                         }
                     }
                 }
-                
-                
+
+
                 //make sure velocity doesn't go above the maximum
                 if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
                 {
@@ -338,13 +375,6 @@ namespace Nodes
                 //update position
                 unit.Position += unit.Velocity;
             }
-
-            foreach (Unit unit in attackList)
-            {
-                attackNode(unit, nodeList[unit.DestinationId]);
-            }
-
-
         }
 
         private void UpdateNodes()
