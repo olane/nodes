@@ -30,7 +30,7 @@ namespace Nodes
 
         string windowTitle = "Nodes";
 
-        Color NeutralColor = new Color(100,100,100,255);
+        Color NeutralColor = new Color(100, 100, 100, 255);
 
         /*
          * 0 -> potential field
@@ -149,7 +149,7 @@ namespace Nodes
             //blank 1x1 texture for drawing lines
             blank = new Texture2D(GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             blank.SetData(new[] { Color.White });
-            
+
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace Nodes
                 }
             }
 
-            
+
 
             //store mouse state so that we can check against it next frame
             previousMouseState = currentMouseState;
@@ -286,10 +286,10 @@ namespace Nodes
                     kineticPotentialPaths();
                     break;
             }
-            
 
 
-            
+
+
             List<Unit> attackList = new List<Unit>();
 
             //check collision with destination
@@ -314,7 +314,59 @@ namespace Nodes
 
         private void potentialFieldPaths()
         {
+            foreach (Unit unit in unitList)
+            {
+
+                Node destination = nodeList[unit.DestinationId];
+
+                //add attractive force to destination to velocity
+                Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
+                direction.Normalize();
+                unit.Velocity = direction * unitAccel;
+
+
+                //add repulsive force from other nodes to velocity
+                foreach (Node node in nodeList)
+                {
+                    //don't repel from destination
+                    if (node != destination)
+                    {
+                        float distanceSquared = (node.Position - unit.Position).LengthSquared();
+                        float nodeRadius = node.CalcNodeRadius();
+
+                        //first find nearby nodes
+                        if (distanceSquared < (unitRepulsionLimit + nodeRadius) * (unitRepulsionLimit + nodeRadius))
+                        {
+                            //find the direction of repulsion and normalize
+                            direction = new Vector2(unit.Position.X - node.Position.X, unit.Position.Y - node.Position.Y);
+                            direction.Normalize();
+
+
+                            if (distanceSquared < nodeRadius * nodeRadius)
+                            {
+                                //bounce if colliding
+                                unit.Velocity += direction * 1000f;
+                            }
+                            else
+                            {
+                                //repel if not colliding
+                                unit.Velocity += direction * unitRepulsionConstant / (distanceSquared - nodeRadius * nodeRadius);
+                            }
+                        }
+                    }
+                }
+
+
+                //normalize velocity
+                Vector2 dir = unit.Velocity;
+                dir.Normalize();
+                unit.Velocity = dir * maxUnitVelocity;
+
+                //update position
+                unit.Position += unit.Velocity;
+            }
         }
+
 
         private void kineticPotentialPaths()
         {
@@ -431,11 +483,12 @@ namespace Nodes
 
         private void DrawNodes()
         {
-            foreach(Node node in nodeList){
+            foreach (Node node in nodeList)
+            {
 
                 //draw circle
                 float radius = node.CalcNodeRadius();
-                float nodeScale = radius/300.0f;
+                float nodeScale = radius / 300.0f;
 
                 spriteBatch.Draw(circle300, node.Position, null, GetPlayerColor(node.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
 
@@ -448,7 +501,7 @@ namespace Nodes
                     textColor = new Color(150, 150, 150);
                 }
 
-                spriteBatch.DrawString(Trebuchet, node.UnitCount.ToString(), node.Position - textSize/2, textColor);
+                spriteBatch.DrawString(Trebuchet, node.UnitCount.ToString(), node.Position - textSize / 2, textColor);
 
             }
         }
@@ -465,7 +518,7 @@ namespace Nodes
 
                 spriteBatch.Draw(circle300, unit.Position, null, GetPlayerColor(unit.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
 
-                
+
 
             }
         }
@@ -543,7 +596,7 @@ namespace Nodes
 
         #region Graphics
 
-        
+
         /// <summary>
         /// Draws a line between two points
         /// credit: http://www.xnawiki.com/index.php?title=Drawing_2D_lines_without_using_primitives
@@ -728,8 +781,9 @@ namespace Nodes
         public int getNodeId(Node node)
         {
             int id = nodeList.FindIndex(
-                delegate(Node comparedNode) {
-                    return (comparedNode.Position.X == node.Position.X && comparedNode.Position.Y == node.Position.Y); 
+                delegate(Node comparedNode)
+                {
+                    return (comparedNode.Position.X == node.Position.X && comparedNode.Position.Y == node.Position.Y);
                 }
             );
 
@@ -769,7 +823,7 @@ namespace Nodes
             }
         }
 
-        
+
 
         #endregion
 
