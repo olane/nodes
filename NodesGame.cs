@@ -26,17 +26,14 @@ namespace Nodes
         public Random r = new Random();
 
         int screenWidth = 1200;
-        int screenHeight = 900;
+        int screenHeight = 700;
 
         string windowTitle = "Nodes";
 
         Color NeutralColor = new Color(100, 100, 100, 255);
 
-        /*
-         * 0 -> potential field
-         * 1 -> kinetic potential
-         */
-        int pathfindingMethod = 0;
+       
+
 
         SpriteFont Trebuchet;
         Texture2D circle50;
@@ -48,17 +45,41 @@ namespace Nodes
         List<Player> playerList;
         List<Unit> unitList;
 
+
         int humanOwnerId = 0;
         float attackProportion = 0.5f; //proportion of units that will be sent from an attacking node
+        
+
+
+        // ----------PATHFINDING-------------
+        float unitStartVelocity = 0.3f;
         float maxUnitVelocity = 3;
         float maxUnitVelocitySquared;
-        float unitAccel = 0.15f;
-        float unitStartVelocity = 0.3f;
+
+
+        /*
+        * 0 -> potential field
+        * 1 -> kinetic potential
+        */
+        int pathfindingMethod = 0;
+
+
+        //--potential field
+        float unitDestinationAccel = 0.15f; //acceleration of the units towards their destination
         float unitFriction = 0.995f;
 
-        float unitRepulsionLimit = 150;
-        //float unitRepulsionLimitSquared;
-        float unitRepulsionConstant = 250f;
+
+        //--kinetic potential
+        float unitDestinationWeighting = 0.15f; //weighting of attraction to destination compared to repulsion from obstacles (potential field)
+
+
+        //--multiple systems
+        float unitRepulsionLimit = 100; //added to node radius when calculating repulsion in kinetic potential and potential field systems
+        float unitRepulsionConstant = 250f; //weighting for repulsion from objects (potential field) (kinetic potential)
+
+
+
+
 
         MouseState previousMouseState; //holds last frame's mouse state
         MouseState currentMouseState;  //holds this frame's mouse state
@@ -94,7 +115,6 @@ namespace Nodes
             Window.Title = windowTitle;
 
             maxUnitVelocitySquared = maxUnitVelocity * maxUnitVelocity;
-            //unitRepulsionLimitSquared = unitRepulsionLimit * unitRepulsionLimit;
 
             //get level data
             //TODO
@@ -322,7 +342,7 @@ namespace Nodes
                 //add attractive force to destination to velocity
                 Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
                 direction.Normalize();
-                unit.Velocity = direction * unitAccel;
+                unit.Velocity = direction * unitDestinationWeighting;
 
 
                 //add repulsive force from other nodes to velocity
@@ -381,7 +401,7 @@ namespace Nodes
                 //add attractive force to destination to velocity
                 Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
                 direction.Normalize();
-                unit.Velocity += direction * unitAccel;
+                unit.Velocity += direction * unitDestinationAccel;
 
 
                 //add repulsive force from other nodes to velocity
