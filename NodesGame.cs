@@ -58,10 +58,11 @@ namespace Nodes
 
 
         /*
-        * 0 -> potential field
-        * 1 -> kinetic potential
-        */
-        int pathfindingMethod = 0;
+         * 0 -> potential field
+         * 1 -> kinetic potential
+         * 2 -> kinetic steering
+         */
+        int pathfindingMethod = 2;
 
 
         //--potential field
@@ -71,6 +72,12 @@ namespace Nodes
 
         //--kinetic potential
         float unitDestinationWeighting = 0.15f; //weighting of attraction to destination compared to repulsion from obstacles (potential field)
+
+
+        //--potential steering
+        Vector2[] relativeTestPoints = new Vector2[3];
+        float steerForce = 0.2f;
+        float brakeForce = 0.97f;
 
 
         //--multiple systems
@@ -123,7 +130,7 @@ namespace Nodes
             //load level data into variables
 
             nodeList = new List<Node>();
-            nodeList.Add(new Node(new Vector2(200, 400), 30, 0, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(200, 400), 50, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
             nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.02f, r));
             nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.01f, r));
@@ -138,6 +145,11 @@ namespace Nodes
             playerList.Add(new Player(Color.Green, true, false));
 
             unitList = new List<Unit>();
+
+
+            relativeTestPoints[2] = new Vector2(75, 0);
+            relativeTestPoints[0] = new Vector2(50, 0);
+            relativeTestPoints[1] = new Vector2(25, 0);
 
             //enumerate through any components and initialize them
             base.Initialize();
@@ -305,6 +317,9 @@ namespace Nodes
                 case 1:
                     kineticPotentialPaths();
                     break;
+                case 2:
+                    kineticSteeringPaths();
+                    break;
             }
 
 
@@ -448,6 +463,117 @@ namespace Nodes
                 unit.Position += unit.Velocity;
             }
         }
+
+
+        private void kineticSteeringPaths()
+        {
+            foreach (Unit unit in unitList)
+            {
+
+                Node destination = nodeList[unit.DestinationId];
+
+                //add friction
+                unit.Velocity *= unitFriction;
+
+                //add attractive force to destination to velocity
+                Vector2 direction = new Vector2(destination.Position.X - unit.Position.X, destination.Position.Y - unit.Position.Y);
+                direction.Normalize();
+                unit.Velocity += direction * unitDestinationAccel;
+
+
+                //find the bearing of the unit's velocity (anticlockwise from x axis)
+                float bearing = (float)Math.Atan(-unit.Velocity.Y / unit.Velocity.X);
+
+                //find the points to test against
+                Vector2[] testPoints = new Vector2[3];
+                for (int i = 0; i < 3; i++)
+                {
+                    testPoints[i] = rotateVector2(relativeTestPoints[i], bearing);
+                    testPoints[i] += unit.Position;
+                }
+
+
+                bool avoidanceMode = false;
+
+                foreach (Vector2 testPoint in testPoints)
+                {
+                    foreach (Node node in nodeList)
+                    {
+                        //for each node, check if each test point is colliding with it
+                        if (destination != node && CheckPointCircleCollision(testPoint, node.Position, node.CalcNodeRadius()))
+                        {
+                            //one of our test points is colliding with a node
+                            avoidanceMode = true;
+
+                            //brake
+                            unit.Velocity *= brakeForce;
+
+                            //find which way to steer
+                            bool steerLeft = isLeft(unit.Position, testPoint, node.Position);
+
+                            Vector2 steerVector;
+
+                            //steer
+                            if (steerLeft)
+                            {
+                                steerVector = rotateVector2(unit.Velocity, (float)Math.PI / 2);
+                            }
+                            else
+                            {
+                                steerVector = rotateVector2(unit.Velocity, (float)-Math.PI / 2);
+                            }
+
+                            steerVector.Normalize();
+                            unit.Velocity += steerVector * steerForce;
+
+                            break;
+                        }
+                    }
+                    if (avoidanceMode)
+                    {
+                        break;
+                    }
+                }
+
+                /*
+                //bounce off nodes
+                foreach (Node node in nodeList)
+                {
+                    //don't repel from destination
+                    if (node != destination)
+                    {
+                        direction = new Vector2(unit.Position.X - node.Position.X, unit.Position.Y - node.Position.Y);
+
+                        float distanceSquared = (node.Position - unit.Position).LengthSquared();
+                        float nodeRadius = node.CalcNodeRadius();
+
+                        if (distanceSquared < nodeRadius * nodeRadius)
+                        {
+                            //bounce if colliding
+                            unit.Velocity += direction * 1000f;
+                        }
+                        
+                    }
+                }*/
+                
+
+                 //make sure velocity doesn't go above the maximum
+                if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
+                {
+                    Vector2 dir = unit.Velocity;
+                    dir.Normalize();
+                    unit.Velocity = dir * maxUnitVelocity;
+                }
+
+                
+
+
+
+                //update position
+                unit.Position += unit.Velocity;
+            }
+        }
+
 
         private void UpdateNodes()
         {
@@ -843,6 +969,27 @@ namespace Nodes
             }
         }
 
+        /// <summary>
+        /// Rotates a 2d vector anticlockwise around the origin given an angle
+        /// </summary>
+        /// <param name="vector">Vector to rotate</param>
+        /// <param name="angleInRadians">Angle to rotate through</param>
+        private Vector2 rotateVector2(Vector2 vector, float angleInRadians)
+        {
+            float c = (float)Math.Cos(angleInRadians);
+            float s = (float)Math.Sin(angleInRadians);
+
+            float x = vector.X * c - vector.Y * s;
+            float y = vector.X * s + vector.Y * c;
+
+            return new Vector2(x, y);
+        }
+
+        // credit: http://stackoverflow.com/questions/3461453/determine-which-side-of-a-line-a-point-lies
+        public bool isLeft(Vector2 a, Vector2 b, Vector2 c)
+        {
+            return ((b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X)) > 0;
+        }
 
 
         #endregion

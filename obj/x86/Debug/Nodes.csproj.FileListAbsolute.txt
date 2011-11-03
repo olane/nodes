@@ -5,3 +5,10 @@ C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debu
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.exe
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.pdb
 C:\Oli\Documents\My Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Content\Trebuchet.xnb
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\ResolveAssemblyReference.cache
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Microsoft.Xna.Framework.RuntimeProfile.txt
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.exe
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\obj\x86\Debug\Nodes.pdb
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Content\Trebuchet.xnb
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Nodes.exe
+C:\Documents and Settings\Oli\My Documents\Dropbox\Extended Project\Game\Nodes\Nodes\Nodes\bin\x86\Debug\Nodes.pdb
