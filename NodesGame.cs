@@ -77,7 +77,7 @@ namespace Nodes
         //--potential steering
         Vector2[] relativeTestPoints = new Vector2[3];
         float steerForce = 0.2f;
-        float brakeForce = 0.97f;
+        float brakeForce = 1;
 
 
         //--multiple systems
@@ -146,10 +146,9 @@ namespace Nodes
 
             unitList = new List<Unit>();
 
-
-            relativeTestPoints[2] = new Vector2(75, 0);
-            relativeTestPoints[0] = new Vector2(50, 0);
-            relativeTestPoints[1] = new Vector2(25, 0);
+            relativeTestPoints[0] = new Vector2(75, 0);
+            relativeTestPoints[1] = new Vector2(25, 20);
+            relativeTestPoints[2] = new Vector2(25, -20);
 
             //enumerate through any components and initialize them
             base.Initialize();
@@ -480,9 +479,8 @@ namespace Nodes
                 direction.Normalize();
                 unit.Velocity += direction * unitDestinationAccel;
 
-
-                //find the bearing of the unit's velocity (anticlockwise from x axis)
-                float bearing = (float)Math.Atan(-unit.Velocity.Y / unit.Velocity.X);
+                //find the bearing of the unit's velocity (clockwise from x axis)
+                float bearing = getAngleFromHoriz(unit.Velocity);
 
                 //find the points to test against
                 Vector2[] testPoints = new Vector2[3];
@@ -509,18 +507,21 @@ namespace Nodes
                             unit.Velocity *= brakeForce;
 
                             //find which way to steer
-                            bool steerLeft = isLeft(unit.Position, testPoint, node.Position);
+                            
+
+                            bool steerLeft = isLeft(unit.Position, unit.Velocity + unit.Position, node.Position);
+
 
                             Vector2 steerVector;
 
                             //steer
                             if (steerLeft)
                             {
-                                steerVector = rotateVector2(unit.Velocity, (float)Math.PI / 2);
+                                steerVector = rotateVector2(unit.Velocity, (float)-Math.PI / 2);
                             }
                             else
                             {
-                                steerVector = rotateVector2(unit.Velocity, (float)-Math.PI / 2);
+                                steerVector = rotateVector2(unit.Velocity, (float)Math.PI / 2);
                             }
 
                             steerVector.Normalize();
@@ -574,6 +575,13 @@ namespace Nodes
             }
         }
 
+
+        private float getAngleFromHoriz(Vector2 vec)
+        {
+
+            return (float)Math.Atan2(vec.Y, vec.X);
+
+        }
 
         private void UpdateNodes()
         {
@@ -660,10 +668,24 @@ namespace Nodes
                 //draw circle
                 float radius = 5;
                 float nodeScale = radius / 300.0f;
-                Texture2D nodeTexture = DrawCircle((int)Math.Round(radius));
+                Texture2D point = DrawCircle(1);
 
                 spriteBatch.Draw(circle300, unit.Position, null, GetPlayerColor(unit.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
 
+                /*
+                float bearing = getAngleFromHoriz(unit.Velocity);
+
+                Vector2[] testPoints = new Vector2[3];
+                for (int i = 0; i < 3; i++)
+                {
+                    testPoints[i] = rotateVector2(relativeTestPoints[i], bearing);
+                    testPoints[i] += unit.Position;
+                }
+
+                foreach (Vector2 v in testPoints)
+                {
+                    spriteBatch.Draw(point, v, null, Color.White, 0.0f, new Vector2(1, 1), 1, SpriteEffects.None, 0);
+                }*/
 
 
             }
@@ -970,12 +992,13 @@ namespace Nodes
         }
 
         /// <summary>
-        /// Rotates a 2d vector anticlockwise around the origin given an angle
+        /// Rotates a 2d vector clockwise around the origin given an angle
         /// </summary>
         /// <param name="vector">Vector to rotate</param>
         /// <param name="angleInRadians">Angle to rotate through</param>
         private Vector2 rotateVector2(Vector2 vector, float angleInRadians)
         {
+
             float c = (float)Math.Cos(angleInRadians);
             float s = (float)Math.Sin(angleInRadians);
 
@@ -984,6 +1007,8 @@ namespace Nodes
 
             return new Vector2(x, y);
         }
+
+      
 
         // credit: http://stackoverflow.com/questions/3461453/determine-which-side-of-a-line-a-point-lies
         public bool isLeft(Vector2 a, Vector2 b, Vector2 c)
