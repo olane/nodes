@@ -30,6 +30,8 @@ namespace Nodes
 
         string windowTitle = "Nodes";
 
+        bool drawDebug = true;
+
         Color NeutralColor = new Color(100, 100, 100, 255);
 
        
@@ -61,8 +63,9 @@ namespace Nodes
          * 0 -> potential field
          * 1 -> kinetic potential
          * 2 -> kinetic steering
+         * 3 -> A*
          */
-        int pathfindingMethod = 2;
+        int pathfindingMethod = 3;
 
 
         //--potential field
@@ -80,12 +83,20 @@ namespace Nodes
         float brakeForce = 1;
 
 
+        //--A star
+        int gridResolution = 35;
+        float nodeGraphLeeway = 5;
+        float graphLinkMaxLength = 100;
+        List<GraphPoint> navGraph;
+        List<NavigationPath> navPaths;
+
+
         //--multiple systems
         float unitRepulsionLimit = 100; //added to node radius when calculating repulsion in kinetic potential and potential field systems
         float unitRepulsionConstant = 250f; //weighting for repulsion from objects (potential field) (kinetic potential)
 
 
-
+        List<NavigationPoint> debuglist;
 
 
         MouseState previousMouseState; //holds last frame's mouse state
@@ -133,11 +144,11 @@ namespace Nodes
             nodeList.Add(new Node(new Vector2(200, 400), 50, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
             nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.02f, r));
-            nodeList.Add(new Node(new Vector2(300, 550), 15, 0, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(600, 300), 40, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(300, 200), 15, 0, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(600, 350), 40, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(550, 120), 32, -1, 0.005f, r));
-            nodeList.Add(new Node(new Vector2(700, 500), 37, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(700, 500), 37, 0, 0.005f, r));
 
             playerList = new List<Player>();
             playerList.Add(new Player(Color.Blue, true, true));
@@ -150,8 +161,120 @@ namespace Nodes
             relativeTestPoints[1] = new Vector2(25, 20);
             relativeTestPoints[2] = new Vector2(25, -20);
 
+
+            navGraph = createNavGraph();
+            navPaths = new List<NavigationPath>();
+            
+
             //enumerate through any components and initialize them
             base.Initialize();
+        }
+
+        private List<GraphPoint> createNavGraph()
+        {
+            List<GraphPoint> graph = new List<GraphPoint>();
+
+            //first create a grid of graph points covering the whole space
+            for (int x = 0; x < screenWidth; x++)
+            {
+                if (x % gridResolution == 0)
+                {
+                    for (int y = 0; y < screenHeight; y++)
+                    {
+                        if (y % gridResolution == 0)
+                        {
+                            int xPos = (x + 1) * gridResolution;
+                            int yPos = (y + 1) * gridResolution;
+
+                            Vector2 pos = new Vector2(x, y);
+
+                            GraphPoint newPoint = new GraphPoint();
+                            newPoint.Position = pos;
+                            graph.Add(newPoint);
+                        }
+                        if (y >= screenHeight)
+                        {
+                            break;
+                        }
+                    }
+                    
+                }
+
+                if (x >= screenWidth)
+                {
+                    break;
+                }
+
+            }
+
+            //cull any points that collide with nodes (or may do in the future)
+            List<GraphPoint> invalidPoints = new List<GraphPoint>();
+            foreach (GraphPoint point in graph)
+            {
+                bool spaceFree = true;
+                foreach (Node node in nodeList)
+                {
+                    if (CheckPointCircleCollision(point.Position, node.Position, 75 + nodeGraphLeeway))
+                    {
+                        spaceFree = false;
+                        break;
+                    }
+                }
+
+                if (!spaceFree)
+                {
+                    invalidPoints.Add(point);
+                }
+
+            }
+            foreach (GraphPoint point in invalidPoints)
+            {
+                graph.Remove(point);
+            }
+
+
+            //insert valid connections between nodes
+            foreach (GraphPoint point1 in graph)
+            {
+                bool finished = false;
+
+                foreach (GraphPoint point2 in graph)
+                {
+                    if (point1 != point2)
+                    {
+                        //reject nodes too far away
+                        if (!((point1.Position - point2.Position).LengthSquared() > graphLinkMaxLength * graphLinkMaxLength))
+                        {
+                            bool linkValid = true;
+                            
+                            //check the link wouldn't go through a node
+                            foreach (Node node in nodeList)
+                            {
+                                if (checkLineCircleCollision(point1.Position, point2.Position, node.Position, 75.0f + nodeGraphLeeway))
+                                {
+                                    linkValid = false;
+                                }
+                            }
+                            
+                            if (linkValid)
+                            {
+                                point1.connectedNodes.Add(point2);
+                            }
+
+                        }
+
+                    }
+
+                    
+                }
+
+                if (finished)
+                {
+                    break;
+                }
+            }
+
+            return graph;
         }
 
         #endregion
@@ -246,15 +369,11 @@ namespace Nodes
                         }
                         else
                         {
-                            if (selectedNode != node)
+                            if (selectedNode != node && selectedNode.OwnerId == humanOwnerId)
                             {
                                 spawnUnits(selectedNode, node);
-                                selectedNode.Selected = false;
                             }
-                            else
-                            {
-                                selectedNode.Selected = false;
-                            }
+                            selectedNode.Selected = false;
                         }
 
                         //no need to check the other nodes for clicks, so break the loop
@@ -304,6 +423,7 @@ namespace Nodes
             }
             return output;
         }
+
 
 
         private void UpdateUnits()
@@ -575,6 +695,243 @@ namespace Nodes
             }
         }
 
+        private void buildAStarPath(Node source, Node destination)
+        {
+            if (getAStarPath(source, destination) == null)
+            {
+                //add the source and destination to the graph
+                addNodeToNav(source);
+                addNodeToNav(destination);
+
+
+                /*
+                http://www.policyalmanac.org/games/aStarTutorial.htm
+                1) Add the starting square (or node) to the open list.
+
+                2) Repeat the following:
+
+                    a) Look for the lowest F cost square on the open list. We refer to this as the current square.
+
+                    b) Switch it to the closed list.
+
+                    c) For each of the 8 squares adjacent to this current square …
+
+                            If it is not walkable or if it is on the closed list, ignore it. Otherwise do the following.           
+
+                            If it isn’t on the open list, add it to the open list. Make the current square the parent of this square. Record the F, G, and H costs of the square. 
+
+                            If it is on the open list already, check to see if this path to that square is better, using G cost as the measure. A lower G cost means that this is a better path. If so, change the parent of the square to the current square, and recalculate the G and F scores of the square. If you are keeping your open list sorted by F score, you may need to resort the list to account for the change.
+
+                    d) Stop when you:
+
+                            Add the target square to the closed list, in which case the path has been found (see note below), or
+                            Fail to find the target square, and the open list is empty. In this case, there is no path. 
+                 
+                3) Save the path. Working backwards from the target square, go from each square to its parent square until you reach the starting square. That is your path. 
+                */
+
+                GraphPoint start = findClosestGraphPoint(source.Position, 75 + nodeGraphLeeway + 15);
+                GraphPoint end = findClosestGraphPoint(destination.Position, 75 + nodeGraphLeeway + 15);
+
+                List<NavigationPoint> openList = new List<NavigationPoint>();
+                List<NavigationPoint> closedList = new List<NavigationPoint>();
+
+                
+                //1) Add the starting square (or node) to the open list.
+                NavigationPoint newPoint = new NavigationPoint();
+                newPoint.graphRef = start;
+                newPoint.Parent = null;
+                newPoint.G = 0;
+
+                openList.Add(newPoint);
+
+                bool pathFound = false;
+                NavigationPoint currentPoint = null;
+
+                while (!pathFound)
+                {
+                    float lowestF = 10000000;
+
+                    // a) Look for the lowest F cost square on the open list. We refer to this as the current square.
+                    for (int i = 0; i < openList.Count; i++)
+                    {
+                        if (openList[i].F < lowestF)
+                        {
+                            currentPoint = openList[i];
+                            lowestF = currentPoint.F;
+                        }
+                    }
+
+                    //b) Switch it to the closed list.
+                    openList.Remove(currentPoint);
+                    closedList.Add(currentPoint);
+
+
+                    //Stop when you:
+                    //        Add the target square to the closed list, in which case the path has been found
+                    if (currentPoint.graphRef == end)
+                    {
+                        pathFound = true;
+                        break;
+                    }
+
+                    foreach (GraphPoint p in currentPoint.graphRef.connectedNodes)
+                    {
+                        //  If it is not walkable or if it is on the closed list, ignore it. Otherwise do the following.   
+                        bool ignore = false;
+                        foreach (NavigationPoint n in closedList)
+                        {
+                            if (n.graphRef == p)
+                            {
+                                ignore = true;
+                                break;
+                            }
+                        }
+
+                       // if (ignore)
+                         //   break;
+
+
+                        //If it isn’t on the open list, add it to the open list. Make the current square the parent of this square. Record the F, G, and H costs of the square. 
+                        NavigationPoint openListPoint = null;
+                        foreach (NavigationPoint n in openList)
+                        {
+                            if (n.graphRef == p)
+                            {
+                                openListPoint = n;
+                                break;
+                            }
+                        }
+
+                        if (openListPoint == null)
+                        {
+                            NavigationPoint newP = new NavigationPoint();
+                            newP.graphRef = p;
+                            newP.Parent = currentPoint;
+                            newP.G = (newP.graphRef.Position - newP.Parent.graphRef.Position).Length() + newP.Parent.G;
+
+                            newP.H = (newP.graphRef.Position - destination.Position).Length();
+                            newP.F = newP.G + newP.H;
+                            openList.Add(newP);
+                        }
+                        else
+                        {
+                            if (openListPoint.G > (openListPoint.graphRef.Position - currentPoint.graphRef.Position).Length()  + currentPoint.G)
+                            {
+                                openListPoint.Parent = currentPoint;
+                                openListPoint.G = (openListPoint.graphRef.Position - openListPoint.Parent.graphRef.Position).Length()  + openListPoint.Parent.G;
+
+                                openListPoint.H = (openListPoint.graphRef.Position - destination.Position).Length();
+
+                                openListPoint.F = openListPoint.G + openListPoint.H;
+                            }
+                        }
+
+
+
+                    }
+
+                    if (openList.Count == 0)
+                    {
+                        break;
+                    }
+
+
+                    
+                }
+
+                if (pathFound)
+                {
+                    NavigationPath newPath = walkPath(currentPoint, getNodeId(source), getNodeId(destination));
+                    navPaths.Add(newPath);
+                }
+
+
+                //remove the source and destination from the graph
+                removeNodeFromNav(source);
+                removeNodeFromNav(destination);
+
+
+                debuglist = closedList;
+            }
+        }
+
+        private void removeNodeFromNav(Node node)
+        {
+            GraphPoint nodePoint = new GraphPoint();
+
+            foreach (GraphPoint gp in navGraph)
+            {
+                if (gp.Position == node.Position)
+                {
+                    nodePoint = gp;
+                    break;
+                }
+            }
+
+            for (int i = 0; i < navGraph.Count; i++ )
+            {
+                for (int j = 0; j < navGraph[i].connectedNodes.Count; j++)
+                {
+                    if (navGraph[i].connectedNodes[j].Position == nodePoint.Position)
+                    {
+                        navGraph[i].connectedNodes.Remove(navGraph[i].connectedNodes[j]);
+                    }
+                }
+            }
+
+            navGraph.Remove(nodePoint);
+        }
+
+
+        private void addNodeToNav(Node node)
+        {
+            GraphPoint nodePoint = new GraphPoint();
+            nodePoint.Position = node.Position;
+            
+            foreach (GraphPoint gp in navGraph)
+            {
+                if ((gp.Position - node.Position).LengthSquared() < (75 + nodeGraphLeeway + 50) * (75 + nodeGraphLeeway + 50))
+                {
+                    gp.connectedNodes.Add(nodePoint);
+                    nodePoint.connectedNodes.Add(gp);
+                }
+            }
+
+            navGraph.Add(nodePoint);
+        }
+
+        private NavigationPath walkPath(NavigationPoint lastPoint, int sourceId, int destId)
+        {
+            NavigationPath path = new NavigationPath();
+            path.startNodeId = sourceId;
+            path.endNodeId = destId;
+
+            NavigationPoint currentPoint = lastPoint;
+            while (currentPoint != null)
+            {
+                path.Points.Add(currentPoint.graphRef.Position);
+                currentPoint = currentPoint.Parent;
+            }
+
+            return path;
+        }
+
+        private NavigationPath getAStarPath(Node source, Node destination)
+        {
+            foreach (NavigationPath path in navPaths)
+            {
+                Node startNode = nodeList[path.startNodeId];
+                Node endNode = nodeList[path.endNodeId];
+
+                //check if start and end nodes match
+                if (source.Position== startNode.Position && endNode.Position == destination.Position)
+                {
+                    return path;
+                }
+            }
+            return null;
+        }
 
         private float getAngleFromHoriz(Vector2 vec)
         {
@@ -624,6 +981,11 @@ namespace Nodes
             DrawUI();
             DrawFX();
 
+            if (drawDebug)
+            {
+                DrawDebug();
+            }
+
             spriteBatch.End();
 
             base.Draw(gameTime);
@@ -672,20 +1034,22 @@ namespace Nodes
 
                 spriteBatch.Draw(circle300, unit.Position, null, GetPlayerColor(unit.OwnerId), 0.0f, new Vector2(300, 300), nodeScale, SpriteEffects.None, 0);
 
-                /*
-                float bearing = getAngleFromHoriz(unit.Velocity);
-
-                Vector2[] testPoints = new Vector2[3];
-                for (int i = 0; i < 3; i++)
+                if (pathfindingMethod == 2 && drawDebug == true)
                 {
-                    testPoints[i] = rotateVector2(relativeTestPoints[i], bearing);
-                    testPoints[i] += unit.Position;
+                    float bearing = getAngleFromHoriz(unit.Velocity);
+
+                    Vector2[] testPoints = new Vector2[3];
+                    for (int i = 0; i < 3; i++)
+                    {
+                        testPoints[i] = rotateVector2(relativeTestPoints[i], bearing);
+                        testPoints[i] += unit.Position;
+                    }
+
+                    foreach (Vector2 v in testPoints)
+                    {
+                        spriteBatch.Draw(point, v, null, Color.White, 0.0f, new Vector2(1, 1), 1, SpriteEffects.None, 0);
+                    }
                 }
-
-                foreach (Vector2 v in testPoints)
-                {
-                    spriteBatch.Draw(point, v, null, Color.White, 0.0f, new Vector2(1, 1), 1, SpriteEffects.None, 0);
-                }*/
 
 
             }
@@ -729,9 +1093,44 @@ namespace Nodes
 
         }
 
+
         private void DrawFX()
         {
+        }
 
+
+        private void DrawDebug()
+        {
+            if (pathfindingMethod == 3)
+            {
+                foreach (GraphPoint point in navGraph)
+                {
+                    foreach (GraphPoint point2 in point.connectedNodes)
+                    {
+                        DrawLine(blank, 0.5f, new Color(200,200,255), point.Position, point2.Position);
+                    }
+                }
+
+
+                foreach (NavigationPath path in navPaths)
+                {
+                    for (int i = 0; i < path.Points.Count - 1; i++)
+                    {
+                        DrawLine(blank, 1, Color.Red, path.Points[i], path.Points[i + 1]);
+                    }
+                }
+
+                
+                if (debuglist != null)
+                {
+                    foreach (NavigationPoint p in debuglist)
+                    {
+
+                        Texture2D point = DrawCircle(2);
+                        spriteBatch.Draw(point, p.graphRef.Position, null, Color.Red, 0.0f, new Vector2(2, 2), 1, SpriteEffects.None, 0);
+                    }
+                }
+            }
         }
 
         #endregion
@@ -881,6 +1280,7 @@ namespace Nodes
         /// <param name="destinationNode">The destination node for the units</param>
         private void spawnUnits(Node sourceNode, Node destinationNode)
         {
+            //check source is valid and has enough units to send
             if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1)
             {
                 //calculate how many units to send
@@ -907,10 +1307,16 @@ namespace Nodes
                     float yVel = relativeY * unitStartVelocity;
 
                     //make the unit and add it to the list
-                    Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode));
+                    Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode), getNodeId(sourceNode));
                     unitList.Add(newUnit);
                 }
+
+                if (pathfindingMethod == 3)
+                {
+                    buildAStarPath(sourceNode, destinationNode);
+                }
             }
+
 
         }
 
@@ -1017,6 +1423,85 @@ namespace Nodes
         }
 
 
+        public bool checkLineCircleCollision(Vector2 point1, Vector2 point2, Vector2 circlePos, float radius)
+        {
+            float distance = calcPointLineDistance(point1, point2, circlePos);
+
+            if (distance <= radius)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        public float calcPointLineDistance(Vector2 linePoint1, Vector2 linePoint2, Vector2 point)
+        {
+            //get length along line to take a perpendicular from
+            float u = ((point.X - linePoint1.X) * (linePoint2.X - linePoint1.X) + (point.Y - linePoint1.Y) * (linePoint2.Y - linePoint1.Y)) / ((linePoint2 - linePoint1).Length() * (linePoint2 - linePoint1).Length());
+
+            if (u <= 0)
+            {
+                //point before start of line segement
+                return (point - linePoint1).Length();
+            }
+            else if (u >= 1)
+            {
+                //point after end of line segment
+                return (point - linePoint2).Length();
+            }
+            else
+            {
+                //get point on line closest to point
+                Vector2 p = linePoint1 + u * (linePoint2 - linePoint1);
+
+                //get distance
+                return (p - point).Length();
+            }
+        }
+
+
+        public GraphPoint findClosestGraphPoint(Vector2 pos, float boundBoxRadius)
+        {
+            Vector2 lowerBound = new Vector2(pos.X - boundBoxRadius, pos.Y - boundBoxRadius);
+            Vector2 upperBound = new Vector2(pos.X + boundBoxRadius, pos.Y + boundBoxRadius);
+
+            GraphPoint bestMatch = null;
+            float bestDistanceSquared = boundBoxRadius * 100;
+
+            foreach (GraphPoint point in navGraph)
+            {
+                //check point is in the boundingbox
+                if (point.Position.X >= lowerBound.X && point.Position.Y >= lowerBound.Y && point.Position.X <= upperBound.X && point.Position.Y <= upperBound.Y)
+                {
+                    //check if point is closer than current best match
+                    if ((point.Position - pos).LengthSquared() < bestDistanceSquared)
+                    {
+                        bestMatch = point;
+                        bestDistanceSquared = (point.Position - pos).LengthSquared();
+
+                        if (bestDistanceSquared == 0)
+                        {
+                            return bestMatch;
+                        }
+                    }
+                }
+            }
+
+            //if no points found in the boundingbox, repeat but with a bigger bounding box
+            if (bestMatch == null)
+            {
+                return findClosestGraphPoint(pos, boundBoxRadius * 1.5f);
+            }
+            else
+            {
+                return bestMatch;
+            }
+        }
+        
         #endregion
 
 
