@@ -30,7 +30,7 @@ namespace Nodes
 
         string windowTitle = "Nodes";
 
-        bool drawDebug = true;
+        bool drawDebug = false;
 
         Color NeutralColor = new Color(100, 100, 100, 255);
 
@@ -65,7 +65,7 @@ namespace Nodes
          * 2 -> kinetic steering
          * 3 -> A*
          */
-        int pathfindingMethod = 3;
+        int pathfindingMethod = 2;
 
 
         //--potential field
@@ -143,7 +143,7 @@ namespace Nodes
             nodeList = new List<Node>();
             nodeList.Add(new Node(new Vector2(200, 400), 50, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(900, 600), 9, 2, 0.02f, r));
+            nodeList.Add(new Node(new Vector2(900, 600), 40, 2, 0.02f, r));
             nodeList.Add(new Node(new Vector2(300, 200), 15, 0, 0.01f, r));
             nodeList.Add(new Node(new Vector2(600, 350), 40, -1, 0.005f, r));
             nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
@@ -439,6 +439,9 @@ namespace Nodes
                 case 2:
                     kineticSteeringPaths();
                     break;
+                case 3:
+                    AStarPaths();
+                    break;
             }
 
 
@@ -466,6 +469,7 @@ namespace Nodes
 
         }
 
+        
         private void potentialFieldPaths()
         {
             foreach (Unit unit in unitList)
@@ -695,9 +699,52 @@ namespace Nodes
             }
         }
 
+
+        private void AStarPaths()
+        {
+            foreach (Unit unit in unitList)
+            {
+                int lineSegment = (int)Math.Floor(unit.AStarPathProgress);
+                float segmentProgress = unit.AStarPathProgress - lineSegment;
+
+                if (lineSegment < 0)
+                {
+                    //unit is before start of line
+                    //set position to start of path
+                    unit.Position = navPaths[unit.AStarPathId].Points[0];
+
+                    segmentProgress += maxUnitVelocity / 10;
+
+                    unit.AStarPathProgress = segmentProgress + lineSegment;
+                }
+                else if (lineSegment >= navPaths[unit.AStarPathId].Points.Count - 1)
+                {
+                    //unit is after end of line
+                    //set position to end of path and don't update path progress (wasted processing)
+                    unit.Position = navPaths[unit.AStarPathId].Points[navPaths[unit.AStarPathId].Points.Count - 1];
+                    break;
+                }
+                else
+                {
+
+                    Vector2 lineStart = navPaths[unit.AStarPathId].Points[lineSegment];
+                    Vector2 lineEnd = navPaths[unit.AStarPathId].Points[lineSegment + 1];
+                    float lineLength = (lineEnd - lineStart).Length();
+
+                    Vector2 position = lineStart + (lineEnd - lineStart) * segmentProgress;
+
+                    segmentProgress += maxUnitVelocity / lineLength;
+
+                    unit.AStarPathProgress = segmentProgress + lineSegment;
+                    unit.Position = position;
+                }
+            }
+        }
+
+
         private void buildAStarPath(Node source, Node destination)
         {
-            if (getAStarPath(source, destination) == null)
+            if (getAStarPathId(source, destination) == -1)
             {
                 //add the source and destination to the graph
                 addNodeToNav(source);
@@ -778,12 +825,12 @@ namespace Nodes
                     foreach (GraphPoint p in currentPoint.graphRef.connectedNodes)
                     {
                         //  If it is not walkable or if it is on the closed list, ignore it. Otherwise do the following.   
-                        bool ignore = false;
+                        //bool ignore = false;
                         foreach (NavigationPoint n in closedList)
                         {
                             if (n.graphRef == p)
                             {
-                                ignore = true;
+                                //ignore = true;
                                 break;
                             }
                         }
@@ -914,23 +961,26 @@ namespace Nodes
                 currentPoint = currentPoint.Parent;
             }
 
+            path.Points.Reverse();
+
             return path;
         }
 
-        private NavigationPath getAStarPath(Node source, Node destination)
+        private int getAStarPathId(Node source, Node destination)
         {
-            foreach (NavigationPath path in navPaths)
+            for (int i = 0; i < navPaths.Count; i++)
             {
-                Node startNode = nodeList[path.startNodeId];
-                Node endNode = nodeList[path.endNodeId];
+                Node startNode = nodeList[navPaths[i].startNodeId];
+                Node endNode = nodeList[navPaths[i].endNodeId];
 
                 //check if start and end nodes match
-                if (source.Position== startNode.Position && endNode.Position == destination.Position)
+                if (source.Position == startNode.Position && endNode.Position == destination.Position)
                 {
-                    return path;
+                    return i;
                 }
+
             }
-            return null;
+            return -1;
         }
 
         private float getAngleFromHoriz(Vector2 vec)
@@ -1283,6 +1333,18 @@ namespace Nodes
             //check source is valid and has enough units to send
             if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1)
             {
+                int pathId = -1;
+                //if we're using A*, build the path
+                if (pathfindingMethod == 3)
+                {
+                    buildAStarPath(sourceNode, destinationNode);
+                    pathId = getAStarPathId(sourceNode, destinationNode);
+                    if (pathId == -1)
+                    {
+                        throw new Exception("Path not found");
+                    }
+                }
+
                 //calculate how many units to send
                 int numUnits = (int)Math.Round(sourceNode.UnitCount * attackProportion);
 
@@ -1306,15 +1368,20 @@ namespace Nodes
                     float xVel = relativeX * unitStartVelocity;
                     float yVel = relativeY * unitStartVelocity;
 
-                    //make the unit and add it to the list
+                    //make the unit 
                     Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode), getNodeId(sourceNode));
+
+                    //set up paths for A*
+                    if (pathfindingMethod == 3)
+                    {
+                        newUnit.AStarPathId = pathId;
+                        newUnit.AStarPathProgress = (float)r.NextDouble() * -25;
+                    }
+
+                    //add unit to the list
                     unitList.Add(newUnit);
                 }
 
-                if (pathfindingMethod == 3)
-                {
-                    buildAStarPath(sourceNode, destinationNode);
-                }
             }
 
 

@@ -28,6 +28,12 @@ namespace Nodes
         public int SourceId
         { get; set; }
 
+        public float AStarPathProgress
+        { get; set; }
+
+        public int AStarPathId
+        { get; set; }
+
         public Unit(int owner, Vector2 pos, Vector2 vel, int destination, int source)
         {
             OwnerId = owner;
