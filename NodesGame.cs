@@ -33,8 +33,7 @@ namespace Nodes
         bool drawDebug = false;
 
         Color NeutralColor = new Color(100, 100, 100, 255);
-
-       
+        float NeutralGrowthRate = 0.0015f;
 
 
         SpriteFont Trebuchet;
@@ -46,6 +45,11 @@ namespace Nodes
         List<Node> nodeList;
         List<Player> playerList;
         List<Unit> unitList;
+
+        int currentLevel = 0;
+        List<List<Node>> levelData = new List<List<Node>>();
+        List<List<Player>> playerData = new List<List<Player>>();
+        
 
 
         int humanOwnerId = 0;
@@ -105,6 +109,8 @@ namespace Nodes
 
         List<NavigationPoint> debuglist;
 
+        //---------END PATHFINDING----------
+
 
         MouseState previousMouseState; //holds last frame's mouse state
         MouseState currentMouseState;  //holds this frame's mouse state
@@ -147,20 +153,63 @@ namespace Nodes
 
             //load level data into variables
 
-            nodeList = new List<Node>();
-            nodeList.Add(new Node(new Vector2(200, 400), 50, 0, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(900, 600), 40, 2, 0.02f, r));
-            nodeList.Add(new Node(new Vector2(300, 200), 15, 0, 0.01f, r));
-            nodeList.Add(new Node(new Vector2(600, 350), 40, -1, 0.005f, r));
-            nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
-            nodeList.Add(new Node(new Vector2(550, 120), 32, -1, 0.005f, r));
-            nodeList.Add(new Node(new Vector2(700, 500), 37, 0, 0.005f, r));
+            #region level data
 
-            playerList = new List<Player>();
-            playerList.Add(new Player(Color.Blue, true, true));
-            playerList.Add(new Player(Color.Purple, true, false));
-            playerList.Add(new Player(Color.Green, true, false));
+            //============LEVEL 1=================
+            levelData.Add(new List<Node>());
+            levelData[0].Add(new Node(new Vector2(200, 400), 50, 0, r));
+            levelData[0].Add(new Node(new Vector2(800, 200), 20, 1, r));
+            levelData[0].Add(new Node(new Vector2(900, 600), 40, 2, r));
+            levelData[0].Add(new Node(new Vector2(300, 200), 15, 0, r));
+            levelData[0].Add(new Node(new Vector2(600, 350), 40, -1, r));
+            levelData[0].Add(new Node(new Vector2(300, 550), 27, -1, r));
+            levelData[0].Add(new Node(new Vector2(550, 120), 32, -1, r));
+            levelData[0].Add(new Node(new Vector2(700, 500), 37, 0, r));
+
+            playerData.Add(new List<Player>());
+            playerData[0].Add(new Player(Color.Blue, true, true, 0.01f));
+            playerData[0].Add(new Player(Color.Purple, true, false, 0.015f));
+            playerData[0].Add(new Player(Color.Green, true, false, 0.02f));
+
+            //============LEVEL 2=================
+            levelData.Add(new List<Node>());
+            levelData[1].Add(new Node(new Vector2(100, 350), 50, 0, r));
+            levelData[1].Add(new Node(new Vector2(200, 500), 20, 1, r));
+            levelData[1].Add(new Node(new Vector2(380, 300), 40, 2, r));
+            levelData[1].Add(new Node(new Vector2(530, 400), 15, 0, r));
+            levelData[1].Add(new Node(new Vector2(690, 360), 40, -1, r));
+            levelData[1].Add(new Node(new Vector2(900, 335), 32, -1, r));
+            levelData[1].Add(new Node(new Vector2(1050, 350), 37, 0, r));
+
+            playerData.Add(new List<Player>());
+            playerData[1].Add(new Player(Color.Blue, true, true, 0.01f));
+            playerData[1].Add(new Player(Color.Purple, true, false, 0.015f));
+            playerData[1].Add(new Player(Color.Green, true, false, 0.02f));
+
+            //============LEVEL 3=================
+            levelData.Add(new List<Node>());
+            levelData[2].Add(new Node(new Vector2(200, 100), 35, 0, r));
+            levelData[2].Add(new Node(new Vector2(200, 300), 20, -1, r));
+            levelData[2].Add(new Node(new Vector2(200, 500), 15, -1, r));
+            levelData[2].Add(new Node(new Vector2(400, 100), 21, 0, r));
+            levelData[2].Add(new Node(new Vector2(400, 300), 13, -1, r));
+            levelData[2].Add(new Node(new Vector2(400, 500), 17, -1, r));
+            levelData[2].Add(new Node(new Vector2(600, 100), 19, -1, r));
+            levelData[2].Add(new Node(new Vector2(600, 300), 25, -1, r));
+            levelData[2].Add(new Node(new Vector2(600, 500), 6, 1, r));
+            levelData[2].Add(new Node(new Vector2(800, 100), 1, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 300), 16, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 500), 25, -1 , r));
+            levelData[2].Add(new Node(new Vector2(1000, 100), 12, -1, r));
+            levelData[2].Add(new Node(new Vector2(1000, 300), 34, -1, r));
+            levelData[2].Add(new Node(new Vector2(1000, 500), 12, 2, r));
+
+            playerData.Add(new List<Player>());
+            playerData[2].Add(new Player(Color.Blue, true, true, 0.01f));
+            playerData[2].Add(new Player(Color.Sienna, true, false, 0.012f));
+            playerData[2].Add(new Player(Color.Red, true, false, 0.015f));
+
+            #endregion
 
             unitList = new List<Unit>();
 
@@ -168,13 +217,41 @@ namespace Nodes
             relativeTestPoints[1] = new Vector2(25, 20);
             relativeTestPoints[2] = new Vector2(25, -20);
 
+            setLevel(currentLevel);
 
             navGraph = createNavGraph();
             navPaths = new List<NavigationPath>();
-            
+
 
             //enumerate through any components and initialize them
             base.Initialize();
+        }
+
+        private void setLevel(int levelId)
+        {
+
+            //playerList = playerData[levelId];
+
+            nodeList = new List<Node>();
+
+            levelData[levelId].ForEach((item) =>
+            {
+                nodeList.Add((Node)item.Clone());
+            });
+
+            playerList = new List<Player>();
+
+            playerData[levelId].ForEach((item) =>
+            {
+                playerList.Add((Player)item.Clone());
+            });
+
+
+
+            unitList = new List<Unit>();
+
+            navGraph = createNavGraph();
+            navPaths = new List<NavigationPath>();
         }
 
         private List<GraphPoint> createNavGraph()
@@ -777,9 +854,9 @@ namespace Nodes
                     }
                 }
 
-                if (CheckPointCircleCollision(unit.Position, navPath.Points[nearestSegment + 1], 25))
+                if (CheckPointCircleCollision(unit.Position, navPath.Points[nearestSegment + 1], 50))
                 {
-                    //if nearest segment is in the last three just steer straight to the end point of the path.
+                    //if the end is very close just steer straight for it
                     unit.Velocity *= unitFriction;
                     Vector2 steerVector = navPath.Points[nearestSegment + 1] - unit.Position;
                     steerVector.Normalize();
@@ -1077,7 +1154,14 @@ namespace Nodes
             foreach (Node node in nodeList)
             {
                 //update unit build progress
-                node.UnitProgress += node.BuildSpeed;
+                if (node.OwnerId >= 0)
+                {
+                    node.UnitProgress += playerList[node.OwnerId].GrowthRate;
+                }
+                else
+                {
+                    node.UnitProgress += NeutralGrowthRate;
+                }
             }
         }
 
@@ -1088,7 +1172,24 @@ namespace Nodes
 
         private void UpdatePlayers()
         {
+            bool allEnemiesDead = true;
+            foreach (Player player in playerList)
+            {
+                if (!player.IsHuman && player.IsAlive)
+                {
+                    allEnemiesDead = false;
+                    break;
+                }
+            }
 
+            if(allEnemiesDead)
+            {
+                setLevel(currentLevel + 1);
+            }
+            else if (!playerList[humanOwnerId].IsAlive)
+            {
+                setLevel(currentLevel);
+            }
         }
 
 
@@ -1441,7 +1542,17 @@ namespace Nodes
                 {
                     //work out a random place on the circle to spawn this unit on
                     float angleToDest = (float)Math.Atan2((destinationNode.Position.Y - sourceNode.Position.Y) , (destinationNode.Position.X - sourceNode.Position.X));
-                    float angle = angleToDest + (float)(r.NextDouble() * Math.PI - Math.PI/2);
+                    float angle;
+
+                    if (pathfindingMethod == 4)
+                    {
+                        angle = angleToDest + (float)(r.NextDouble() * Math.PI - Math.PI / 2);
+                    }
+                    else
+                    {
+                        angle = (float)(r.NextDouble() * Math.PI*2);
+                    }
+
                     float relativeX = (float)(radius * Math.Cos(angle));
                     float relativeY = (float)(radius * Math.Sin(angle));
                     float x = sourceNode.Position.X + relativeX;
@@ -1482,17 +1593,40 @@ namespace Nodes
 
             if (attackingUnit.OwnerId != defendingNode.OwnerId)
             {
+                //if enemy node attack
                 if (defendingNode.UnitCount == 1)
                 {
+                    //node taken over
+
+                    if (defendingNode.OwnerId != -1)
+                    {
+                        //check if this is the defender's last node, if so then set their IsAlive status to false
+                        int nodeCount = 0;
+                        foreach (Node node in nodeList)
+                        {
+                            if (node.OwnerId == defendingNode.OwnerId)
+                            {
+                                nodeCount++;
+                            }
+                        }
+                        if (nodeCount == 1)
+                        {
+                            playerList[defendingNode.OwnerId].IsAlive = false;
+                        }
+                    }
+                    //set node to attacker's
                     defendingNode.OwnerId = attackingUnit.OwnerId;
+
                 }
                 else
                 {
+                    //node unitcount reduced by one
                     defendingNode.UnitCount -= 1;
                 }
             }
             else
             {
+                //if friendly node reinforce
                 defendingNode.UnitCount += 1;
             }
         }

@@ -10,7 +10,7 @@ using Microsoft.Xna.Framework.Media;
 
 namespace Nodes
 {
-    public class Node
+    public class Node : ICloneable
     {
         private float _unitProgress;
 
@@ -21,9 +21,6 @@ namespace Nodes
         { get; set; }
 
         public int OwnerId
-        { get; set; }
-
-        public float BuildSpeed
         { get; set; }
 
         public float UnitProgress
@@ -49,13 +46,12 @@ namespace Nodes
         public bool Selected
         { get; set; }
 
-        public Node(Vector2 pos, int units, int owner, float speed, Random r)
+        public Node(Vector2 pos, int units, int owner, Random r)
         {
             UnitProgress = (float)(r.NextDouble());
             Position = pos;
             UnitCount = units;
             OwnerId = owner;
-            BuildSpeed = speed;
             Selected = false;
         }
 
@@ -65,6 +61,15 @@ namespace Nodes
             return (float)(140/(1 + Math.Pow(2, -x/25)) - 65);
             //return 5 + UnitCount + UnitProgress;
         }
+
+        #region ICloneable Members
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
+        }
+
+        #endregion
 
     }
 }
