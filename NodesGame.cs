@@ -54,7 +54,7 @@ namespace Nodes
 
 
         // ----------PATHFINDING-------------
-        float unitStartVelocity = 0.3f;
+        float unitStartVelocity = 0.4f;
         float maxUnitVelocity = 3;
         float maxUnitVelocitySquared;
 
@@ -64,8 +64,9 @@ namespace Nodes
          * 1 -> kinetic potential
          * 2 -> kinetic steering
          * 3 -> A*
+         * 4 -> A* steering
          */
-        int pathfindingMethod = 2;
+        int pathfindingMethod = 4;
 
 
         //--potential field
@@ -79,7 +80,7 @@ namespace Nodes
 
         //--potential steering
         Vector2[] relativeTestPoints = new Vector2[3];
-        float steerForce = 0.2f;
+        float steerForce = 0.5f;
         float brakeForce = 1;
 
 
@@ -89,6 +90,12 @@ namespace Nodes
         float graphLinkMaxLength = 100;
         List<GraphPoint> navGraph;
         List<NavigationPath> navPaths;
+
+
+        //--A star steering
+        float pathSteeringTargetDistance = 80f;
+        float pathSteeringErrorMargin = 15;
+        float pathSteeringForce = 0.2f;
 
 
         //--multiple systems
@@ -442,6 +449,9 @@ namespace Nodes
                 case 3:
                     AStarPaths();
                     break;
+                case 4:
+                    AStarSteeringPaths();
+                    break;
             }
 
 
@@ -738,6 +748,78 @@ namespace Nodes
                     unit.AStarPathProgress = segmentProgress + lineSegment;
                     unit.Position = position;
                 }
+            }
+        }
+
+
+        private void AStarSteeringPaths()
+        {
+            foreach (Unit unit in unitList)
+            {
+                NavigationPath navPath = navPaths[unit.AStarPathId];
+                Vector2 heading = unit.Velocity;
+                heading.Normalize();
+                Vector2 target = heading * pathSteeringTargetDistance + unit.Position;
+
+                float shortestDistance = 10000;
+                int nearestSegment = 0;
+
+                for (int i = 0; i < navPath.Points.Count - 1; i++)
+                {
+                    Vector2 point1 = navPath.Points[i];
+                    Vector2 point2 = navPath.Points[i + 1];
+
+                    float dist = calcPointLineDistance(point1, point2, target);
+                    if (dist < shortestDistance)
+                    {
+                        nearestSegment = i;
+                        shortestDistance = dist;
+                    }
+                }
+
+                if (CheckPointCircleCollision(unit.Position, navPath.Points[nearestSegment + 1], 25))
+                {
+                    //if nearest segment is in the last three just steer straight to the end point of the path.
+                    unit.Velocity *= unitFriction;
+                    Vector2 steerVector = navPath.Points[nearestSegment + 1] - unit.Position;
+                    steerVector.Normalize();
+                    unit.Velocity += steerVector * 0.5f;
+                }
+                else if (shortestDistance > pathSteeringErrorMargin)
+                {
+
+                    //find which way to steer
+                    bool steerLeft = isLeft(navPath.Points[nearestSegment], navPath.Points[nearestSegment + 1], target);
+
+
+                    Vector2 steerVector;
+
+                    //steer
+                    if (steerLeft)
+                    {
+                        steerVector = rotateVector2(unit.Velocity, (float)-Math.PI / 2);
+                    }
+                    else
+                    {
+                        steerVector = rotateVector2(unit.Velocity, (float)Math.PI / 2);
+                    }
+
+                    steerVector.Normalize();
+                    unit.Velocity += steerVector * pathSteeringForce;
+
+                }
+
+                unit.Velocity += heading * 0.02f;
+
+                //make sure velocity doesn't go above the maximum
+                if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
+                {
+                    Vector2 dir = unit.Velocity;
+                    dir.Normalize();
+                    unit.Velocity = dir * maxUnitVelocity;
+                }
+
+                unit.Position += unit.Velocity;
             }
         }
 
@@ -1151,7 +1233,7 @@ namespace Nodes
 
         private void DrawDebug()
         {
-            if (pathfindingMethod == 3)
+            if (pathfindingMethod == 3 || pathfindingMethod == 4)
             {
                 foreach (GraphPoint point in navGraph)
                 {
@@ -1335,7 +1417,7 @@ namespace Nodes
             {
                 int pathId = -1;
                 //if we're using A*, build the path
-                if (pathfindingMethod == 3)
+                if (pathfindingMethod == 3 || pathfindingMethod == 4)
                 {
                     buildAStarPath(sourceNode, destinationNode);
                     pathId = getAStarPathId(sourceNode, destinationNode);
@@ -1358,21 +1440,22 @@ namespace Nodes
                 for (int i = 0; i < numUnits; i++)
                 {
                     //work out a random place on the circle to spawn this unit on
-                    float angle = (float)(r.NextDouble() * Math.PI * 2);
+                    float angleToDest = (float)Math.Atan2((destinationNode.Position.Y - sourceNode.Position.Y) , (destinationNode.Position.X - sourceNode.Position.X));
+                    float angle = angleToDest + (float)(r.NextDouble() * Math.PI - Math.PI/2);
                     float relativeX = (float)(radius * Math.Cos(angle));
                     float relativeY = (float)(radius * Math.Sin(angle));
                     float x = sourceNode.Position.X + relativeX;
                     float y = sourceNode.Position.Y + relativeY;
 
                     //add an initial velocity directly away from the source node
-                    float xVel = relativeX * unitStartVelocity;
-                    float yVel = relativeY * unitStartVelocity;
+                    float xVel = relativeX * unitStartVelocity * ((float)r.NextDouble());
+                    float yVel = relativeY * unitStartVelocity * ((float)r.NextDouble());
 
                     //make the unit 
                     Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode), getNodeId(sourceNode));
 
                     //set up paths for A*
-                    if (pathfindingMethod == 3)
+                    if (pathfindingMethod == 3 || pathfindingMethod == 4)
                     {
                         newUnit.AStarPathId = pathId;
                         newUnit.AStarPathProgress = (float)r.NextDouble() * -25;
@@ -1484,9 +1567,17 @@ namespace Nodes
       
 
         // credit: http://stackoverflow.com/questions/3461453/determine-which-side-of-a-line-a-point-lies
-        public bool isLeft(Vector2 a, Vector2 b, Vector2 c)
+        public bool isLeft(Vector2 linePoint1, Vector2 linePoint2, Vector2 point)
         {
-            return ((b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X)) > 0;
+            return ((linePoint2.X - linePoint1.X) * (point.Y - linePoint1.Y) - (linePoint2.Y - linePoint1.Y) * (point.X - linePoint1.X)) > 0;
+        }
+
+        public bool isBeyondEnd(Vector2 startPoint, Vector2 endPoint, Vector2 point)
+        {
+            Vector2 line = endPoint - startPoint;
+            Vector2 line2 = rotateVector2(line, (float)Math.PI / 2);
+
+            return isLeft(endPoint, endPoint - line2, point);
         }
 
 
@@ -1529,6 +1620,8 @@ namespace Nodes
                 return (p - point).Length();
             }
         }
+
+
 
 
         public GraphPoint findClosestGraphPoint(Vector2 pos, float boundBoxRadius)
