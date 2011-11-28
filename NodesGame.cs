@@ -46,7 +46,7 @@ namespace Nodes
         List<Player> playerList;
         List<Unit> unitList;
 
-        int currentLevel = 0;
+        int currentLevel = 2;
         List<List<Node>> levelData = new List<List<Node>>();
         List<List<Player>> playerData = new List<List<Player>>();
         
@@ -188,21 +188,21 @@ namespace Nodes
 
             //============LEVEL 3=================
             levelData.Add(new List<Node>());
-            levelData[2].Add(new Node(new Vector2(200, 100), 35, 0, r));
-            levelData[2].Add(new Node(new Vector2(200, 300), 20, -1, r));
-            levelData[2].Add(new Node(new Vector2(200, 500), 15, -1, r));
-            levelData[2].Add(new Node(new Vector2(400, 100), 21, 0, r));
-            levelData[2].Add(new Node(new Vector2(400, 300), 13, -1, r));
-            levelData[2].Add(new Node(new Vector2(400, 500), 17, -1, r));
-            levelData[2].Add(new Node(new Vector2(600, 100), 19, -1, r));
-            levelData[2].Add(new Node(new Vector2(600, 300), 25, -1, r));
-            levelData[2].Add(new Node(new Vector2(600, 500), 6, 1, r));
-            levelData[2].Add(new Node(new Vector2(800, 100), 1, -1, r));
-            levelData[2].Add(new Node(new Vector2(800, 300), 16, -1, r));
-            levelData[2].Add(new Node(new Vector2(800, 500), 25, -1 , r));
-            levelData[2].Add(new Node(new Vector2(1000, 100), 12, -1, r));
-            levelData[2].Add(new Node(new Vector2(1000, 300), 34, -1, r));
-            levelData[2].Add(new Node(new Vector2(1000, 500), 12, 2, r));
+            levelData[2].Add(new Node(new Vector2(200, 100), 5, 0, r));
+            levelData[2].Add(new Node(new Vector2(200, 300), 2, -1, r));
+            levelData[2].Add(new Node(new Vector2(200, 500), 1, -1, r));
+            levelData[2].Add(new Node(new Vector2(400, 100), 7, -1, r));
+            levelData[2].Add(new Node(new Vector2(400, 300), 5, -1, r));
+            levelData[2].Add(new Node(new Vector2(400, 500), 4, 1, r));
+            levelData[2].Add(new Node(new Vector2(600, 100), 9, -1, r));
+            levelData[2].Add(new Node(new Vector2(600, 300), 3, -1, r));
+            levelData[2].Add(new Node(new Vector2(600, 500), 6, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 100), 5, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 300), 7, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 500), 11, -1 , r));
+            levelData[2].Add(new Node(new Vector2(1000, 100), 2, -1, r));
+            levelData[2].Add(new Node(new Vector2(1000, 300), 5, -1, r));
+            levelData[2].Add(new Node(new Vector2(1000, 500), 4, 2, r));
 
             playerData.Add(new List<Player>());
             playerData[2].Add(new Player(Color.Blue, true, true, 0.01f));
@@ -230,28 +230,38 @@ namespace Nodes
         private void setLevel(int levelId)
         {
 
-            //playerList = playerData[levelId];
-
-            nodeList = new List<Node>();
-
-            levelData[levelId].ForEach((item) =>
+            if (levelId < levelData.Count)
             {
-                nodeList.Add((Node)item.Clone());
-            });
+                //playerList = playerData[levelId];
 
-            playerList = new List<Player>();
+                nodeList = new List<Node>();
 
-            playerData[levelId].ForEach((item) =>
+                levelData[levelId].ForEach((item) =>
+                {
+                    nodeList.Add((Node)item.Clone());
+                });
+
+                playerList = new List<Player>();
+
+                playerData[levelId].ForEach((item) =>
+                {
+                    playerList.Add((Player)item.Clone());
+                });
+
+
+                currentLevel = levelId;
+
+
+
+                unitList = new List<Unit>();
+
+                navGraph = createNavGraph();
+                navPaths = new List<NavigationPath>();
+            }
+            else
             {
-                playerList.Add((Player)item.Clone());
-            });
-
-
-
-            unitList = new List<Unit>();
-
-            navGraph = createNavGraph();
-            navPaths = new List<NavigationPath>();
+                throw new Exception("Level does not exist");
+            }
         }
 
         private List<GraphPoint> createNavGraph()
