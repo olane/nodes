@@ -32,6 +32,9 @@ namespace Nodes
 
         bool drawDebug = false;
 
+        uint updateNumber = 0;
+        int AIUpdatePeriod = 150;
+
         Color NeutralColor = new Color(100, 100, 100, 255);
         float NeutralGrowthRate = 0.0015f;
 
@@ -46,7 +49,7 @@ namespace Nodes
         List<Player> playerList;
         List<Unit> unitList;
 
-        int currentLevel = 2;
+        int currentLevel = 0;
         List<List<Node>> levelData = new List<List<Node>>();
         List<List<Player>> playerData = new List<List<Player>>();
         
@@ -57,7 +60,7 @@ namespace Nodes
         
 
 
-        // ----------PATHFINDING-------------
+        // --------------------PATHFINDING-----------------------
         float unitStartVelocity = 0.4f;
         float maxUnitVelocity = 3;
         float maxUnitVelocitySquared;
@@ -109,7 +112,19 @@ namespace Nodes
 
         List<NavigationPoint> debuglist;
 
-        //---------END PATHFINDING----------
+        //----------------END PATHFINDING-----------------
+
+
+
+        //---------------------AI--------------------------
+
+        /*
+         * 0 -> Simple (50 or more attacks smallest node)
+         * 1 -> Decision Tree
+         */
+        int AIMethod = 1;
+
+        //-------------------END AI------------------------
 
 
         MouseState previousMouseState; //holds last frame's mouse state
@@ -159,17 +174,17 @@ namespace Nodes
             levelData.Add(new List<Node>());
             levelData[0].Add(new Node(new Vector2(200, 400), 50, 0, r));
             levelData[0].Add(new Node(new Vector2(800, 200), 20, 1, r));
-            levelData[0].Add(new Node(new Vector2(900, 600), 40, 2, r));
-            levelData[0].Add(new Node(new Vector2(300, 200), 15, 0, r));
+            levelData[0].Add(new Node(new Vector2(900, 600), 40, 1, r));
+            levelData[0].Add(new Node(new Vector2(300, 200), 15, 1, r));
             levelData[0].Add(new Node(new Vector2(600, 350), 40, -1, r));
-            levelData[0].Add(new Node(new Vector2(300, 550), 27, -1, r));
+            levelData[0].Add(new Node(new Vector2(300, 550), 27, 2, r));
             levelData[0].Add(new Node(new Vector2(550, 120), 32, -1, r));
             levelData[0].Add(new Node(new Vector2(700, 500), 37, 0, r));
 
             playerData.Add(new List<Player>());
             playerData[0].Add(new Player(Color.Blue, true, true, 0.01f));
-            playerData[0].Add(new Player(Color.Purple, true, false, 0.015f));
-            playerData[0].Add(new Player(Color.Green, true, false, 0.02f));
+            playerData[0].Add(new Player(Color.Purple, true, false, 0.01f));
+            playerData[0].Add(new Player(Color.Green, true, false, 0.01f));
 
             //============LEVEL 2=================
             levelData.Add(new List<Node>());
@@ -198,7 +213,7 @@ namespace Nodes
             levelData[2].Add(new Node(new Vector2(600, 300), 3, -1, r));
             levelData[2].Add(new Node(new Vector2(600, 500), 6, -1, r));
             levelData[2].Add(new Node(new Vector2(800, 100), 5, -1, r));
-            levelData[2].Add(new Node(new Vector2(800, 300), 7, -1, r));
+            levelData[2].Add(new Node(new Vector2(800, 300), 2, 2, r));
             levelData[2].Add(new Node(new Vector2(800, 500), 11, -1 , r));
             levelData[2].Add(new Node(new Vector2(1000, 100), 2, -1, r));
             levelData[2].Add(new Node(new Vector2(1000, 300), 5, -1, r));
@@ -207,7 +222,7 @@ namespace Nodes
             playerData.Add(new List<Player>());
             playerData[2].Add(new Player(Color.Blue, true, true, 0.01f));
             playerData[2].Add(new Player(Color.Sienna, true, false, 0.012f));
-            playerData[2].Add(new Player(Color.Red, true, false, 0.015f));
+            playerData[2].Add(new Player(Color.Red, true, false, 0.011f));
 
             #endregion
 
@@ -427,12 +442,18 @@ namespace Nodes
 
             //run game logic
             ProcessInput();
-            ProcessAI();
             UpdateUnits();
             UpdateNodes();
             CheckCollisions();
             UpdatePlayers();
 
+            if (updateNumber % AIUpdatePeriod == 0)
+            {
+                ProcessAI();
+            }
+
+            //increment logic frame counter
+            updateNumber++;
 
             base.Update(gameTime);
         }
@@ -486,17 +507,30 @@ namespace Nodes
         {
             foreach (Player player in playerList)
             {
-                if (!player.IsHuman)
+                if (!player.IsHuman && player.IsAlive)
                 {
-                    foreach (Node node in nodeList)
+                    switch (AIMethod)
                     {
-                        if (node.OwnerId != -1)
-                        {
-                            if (player == playerList[node.OwnerId] && node.UnitCount > 50)
-                            {
-                                spawnUnits(node, getWeakestEnemyNode(player));
-                            }
-                        }
+                        case 0:
+                            simpleAI(player);
+                            break;
+                        case 1:
+                            decisionTreeAI(player);
+                            break;
+                    }
+                }
+            }
+        }
+
+        private void simpleAI(Player player)
+        {
+            foreach (Node node in nodeList)
+            {
+                if (node.OwnerId != -1)
+                {
+                    if (player == playerList[node.OwnerId] && node.UnitCount > 50)
+                    {
+                        spawnUnits(node, getWeakestEnemyNode(player));
                     }
                 }
             }
@@ -505,19 +539,196 @@ namespace Nodes
         private Node getWeakestEnemyNode(Player player)
         {
             Node output = null;
+            int smallestNum = 500;
+
             foreach (Node node in nodeList)
             {
                 if (node.OwnerId == -1 || playerList[node.OwnerId] != player)
                 {
-                    if (output == null || output.UnitCount > node.UnitCount)
+                    int unitNum = getNetUnitCount(node);
+
+                    if (output == null || smallestNum > unitNum)
                     {
                         output = node;
+                        smallestNum = unitNum;
                     }
                 }
             }
             return output;
         }
 
+        //gets the unit count of a given node, taking into account any enemy or friendly units on their way to that node
+        private int getNetUnitCount(Node node)
+        {
+            int unitCount = node.UnitCount;
+
+            if (node.OwnerId != -1)
+            {
+                //make unit count take into account friendly troops on their way to reinforce or enemy troops on their way to attack
+                foreach (Unit unit in unitList)
+                {
+                    if (unit.DestinationId == getNodeId(node))
+                    {
+                        if (node.OwnerId == unit.OwnerId)
+                        {
+                            unitCount += 1;
+                        }
+                        else
+                        {
+                            unitCount -= 1;
+                        }
+                    }
+                }
+            }
+
+            return unitCount;
+        }
+
+        private Node getNetWeakestFriendlyNode(Player player)
+        {
+            Node output = null;
+            int smallestNum = 500;
+
+            foreach (Node node in nodeList)
+            {
+                if (node.OwnerId != -1 && playerList[node.OwnerId] == player)
+                {
+                    int unitNum = getNetUnitCount(node);
+
+                    if (output == null || smallestNum > unitNum)
+                    {
+                        output = node;
+                        smallestNum = unitNum;
+                    }
+                }
+            }
+            return output;
+        }
+
+        private Node getNetStrongestFriendlyNode(Player player)
+        {
+            Node output = null;
+            int biggestNum = 0;
+
+            foreach (Node node in nodeList)
+            {
+                if (node.OwnerId != -1 && playerList[node.OwnerId] == player)
+                {
+                    int unitNum = getNetUnitCount(node);
+
+                    if (output == null || biggestNum < unitNum)
+                    {
+                        output = node;
+                        biggestNum = unitNum;
+                    }
+                }
+            }
+            return output;
+        }
+
+
+
+        private void decisionTreeAI(Player player)
+        {
+            bool defending = false;
+            Node smallestNode = getNetWeakestFriendlyNode(player);
+
+            //check for nodes that need defending
+            if (smallestNode != null)
+            {
+                int thresholdWeakness = 10;
+                int safeThreshold = 15;
+                int attackThreshold = 30;
+
+                int smallestNodeUnitCount = getNetUnitCount(smallestNode);
+
+                if (smallestNodeUnitCount < thresholdWeakness)
+                {
+                    //one of my nodes is too small or is being attacked by a dangerous amount of units
+                    defending = true;
+
+                    //get a list of other nodes that are big enough to reinforce the small node
+                    List<Node> reinforcementList = new List<Node>();
+                    foreach (Node node in nodeList)
+                    {
+                        if (node.OwnerId >= 0 && playerList[node.OwnerId] == player && getNetUnitCount(node) > attackThreshold)
+                        {
+                            reinforcementList.Add(node);
+                        }
+                    }
+
+                    //if we have any nodes with spare units
+                    if (reinforcementList.Count > 0)
+                    {
+                        //order by distance from smallestNode
+                        reinforcementList.Sort((x, y) => (x.Position - smallestNode.Position).LengthSquared().CompareTo((y.Position - smallestNode.Position).LengthSquared()));
+
+
+                        //send units until smallestNode above safeThreshold
+                        int i = 0;
+                        while (smallestNodeUnitCount < safeThreshold && i < reinforcementList.Count)
+                        {
+                            smallestNodeUnitCount += (int)Math.Floor(attackProportion * reinforcementList[i].UnitCount);
+                            spawnUnits(reinforcementList[i], smallestNode);
+                            i++;
+                        }
+                    }
+                    return;
+                }
+            }
+
+
+            if (!defending)
+            {
+
+
+                //TEMPORARY
+                float rand = (float)r.NextDouble();
+                if (rand < 0.2)
+                {
+                    Node target = getWeakestEnemyNode(player);
+                    Node source = getNetStrongestFriendlyNode(player);
+
+                    if (target.UnitCount < source.UnitCount / 2)
+                    {
+                        spawnUnits(source, target);
+                    }
+                }
+
+
+
+                // TODO-----------------------------------------------------------------------------------
+
+
+
+
+
+
+
+                //check for any good nodes to attack
+            }
+        }
+
+
+        private static int compareDistances(Vector2 x, Vector2 y, Vector2 p)
+        {
+            float xDist2 = (p - x).LengthSquared();
+            float yDist2 = (p - y).LengthSquared();
+            if (xDist2 < yDist2)
+            {
+                //x is closer
+                return -1;
+            }
+            else if (xDist2 > yDist2)
+            {
+                //y is closer
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
 
 
         private void UpdateUnits()
@@ -1523,8 +1734,8 @@ namespace Nodes
         /// <param name="destinationNode">The destination node for the units</param>
         private void spawnUnits(Node sourceNode, Node destinationNode)
         {
-            //check source is valid and has enough units to send
-            if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1)
+            //check journey is valid and has enough units to send
+            if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1 && sourceNode != destinationNode)
             {
                 int pathId = -1;
                 //if we're using A*, build the path
