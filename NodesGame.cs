@@ -467,6 +467,7 @@ namespace Nodes
             //check if mouse just clicked a node
             if (currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton != ButtonState.Pressed)
             {
+                
                 foreach (Node node in nodeList)
                 {
                     if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
@@ -482,19 +483,36 @@ namespace Nodes
                                 node.Selected = true;
                             }
                         }
-                        else
-                        {
-                            if (selectedNode != node && selectedNode.OwnerId == humanOwnerId)
-                            {
-                                spawnUnits(selectedNode, node);
-                            }
-                            selectedNode.Selected = false;
-                        }
-
+                        
                         //no need to check the other nodes for clicks, so break the loop
                         break;
                     }
                 }
+            }
+
+            //check if mouse just stopped dragging
+            else if (previousMouseState.LeftButton == ButtonState.Pressed && currentMouseState.LeftButton != ButtonState.Pressed)
+            {
+                Node selectedNode = getSelectedNode();
+
+                foreach (Node node in nodeList)
+                {
+                    if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
+                    {
+                        //mouse stopped dragging over a node
+
+                        if (selectedNode != node && selectedNode.OwnerId == humanOwnerId)
+                        {
+                            spawnUnits(selectedNode, node);
+                        }
+
+
+                        //no need to check the other nodes, so break the loop
+                        break;
+                    }
+                }
+
+                selectedNode.Selected = false;
             }
 
 
