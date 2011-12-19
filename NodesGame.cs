@@ -176,9 +176,9 @@ namespace Nodes
             levelData[0].Add(new Node(new Vector2(800, 200), 20, 1, r));
             levelData[0].Add(new Node(new Vector2(900, 600), 40, 1, r));
             levelData[0].Add(new Node(new Vector2(300, 200), 15, 1, r));
-            levelData[0].Add(new Node(new Vector2(600, 350), 40, -1, r));
+            levelData[0].Add(new Node(new Vector2(600, 350), 10, -1, r));
             levelData[0].Add(new Node(new Vector2(300, 550), 27, 2, r));
-            levelData[0].Add(new Node(new Vector2(550, 120), 32, -1, r));
+            levelData[0].Add(new Node(new Vector2(550, 120), 13, -1, r));
             levelData[0].Add(new Node(new Vector2(700, 500), 37, 0, r));
 
             playerData.Add(new List<Player>());
@@ -464,19 +464,18 @@ namespace Nodes
             //process mouse
             currentMouseState = Mouse.GetState();
 
-            //check if mouse just clicked a node
-            if (currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton != ButtonState.Pressed)
+            //check if mouse is clicking
+            if (currentMouseState.LeftButton == ButtonState.Pressed)
             {
                 
                 foreach (Node node in nodeList)
                 {
                     if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
                     {
-                        //mouse is clicking a node
-                        Node selectedNode = getSelectedNode();
-
+                        //mouse is clicking over a node
+                        
                         //check what we should do with the clicked node
-                        if (selectedNode == null)
+                        if (!node.Selected)
                         {
                             if (node.OwnerId == humanOwnerId)
                             {
@@ -490,20 +489,27 @@ namespace Nodes
                 }
             }
 
-            //check if mouse just stopped dragging
+            //check if mouse just stopped clicking
             else if (previousMouseState.LeftButton == ButtonState.Pressed && currentMouseState.LeftButton != ButtonState.Pressed)
             {
-                Node selectedNode = getSelectedNode();
+                List<Node> selectedNodes = getSelectedNodes();
 
                 foreach (Node node in nodeList)
                 {
                     if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
                     {
                         //mouse stopped dragging over a node
+                        Node targetNode = node;
 
-                        if (selectedNode != node && selectedNode.OwnerId == humanOwnerId)
+                        foreach (Node selectedNode in selectedNodes)
                         {
-                            spawnUnits(selectedNode, node);
+                            if (targetNode != selectedNode)
+                            {
+                                if (selectedNode.OwnerId == humanOwnerId)
+                                {
+                                    spawnUnits(selectedNode, targetNode);
+                                }
+                            }
                         }
 
 
@@ -512,7 +518,10 @@ namespace Nodes
                     }
                 }
 
-                selectedNode.Selected = false;
+                foreach (Node selectedNode in selectedNodes)
+                {
+                    selectedNode.Selected = false;
+                }
             }
 
 
@@ -1530,10 +1539,13 @@ namespace Nodes
         private void DrawUI()
         {
             //if a node is selected, draw a line from it to the mouse
-            Node selectedNode = getSelectedNode();
-            if (selectedNode != null)
+            List<Node> selectedNodes = getSelectedNodes();
+            if (selectedNodes.Count != 0)
             {
-                DrawLine(blank, 2f, Color.White, selectedNode.Position, new Vector2(currentMouseState.X, currentMouseState.Y));
+                foreach (Node selectedNode in selectedNodes)
+                {
+                    DrawLine(blank, 2f, Color.White, selectedNode.Position, new Vector2(currentMouseState.X, currentMouseState.Y));
+                }
             }
 
 
@@ -1549,7 +1561,7 @@ namespace Nodes
                         DrawNodeBorder(node, Color.White, 2);
 
                     }
-                    else if (selectedNode != null && node.OwnerId != humanOwnerId)
+                    else if (selectedNodes.Count != 0 && node.OwnerId != humanOwnerId)
                     {
                         //node doesn't belong to player but player has already selected a node, so border the node
                         DrawNodeBorder(node, Color.White, 2);
@@ -1856,6 +1868,9 @@ namespace Nodes
                     //set node to attacker's
                     defendingNode.OwnerId = attackingUnit.OwnerId;
 
+                    //unselect the node if it is selected
+                    defendingNode.Selected = false;
+
                 }
                 else
                 {
@@ -1891,16 +1906,20 @@ namespace Nodes
         /// <summary>
         /// Returns the first node in nodeList whose Selected field = true
         /// </summary>
-        private Node getSelectedNode()
+        private List<Node> getSelectedNodes()
         {
+            List<Node> nodes = new List<Node>();
+
             foreach (Node node in nodeList)
             {
                 if (node.Selected)
                 {
-                    return node;
+                    nodes.Add(node);
                 }
             }
-            return null;
+
+            return nodes;
+            
         }
 
 
