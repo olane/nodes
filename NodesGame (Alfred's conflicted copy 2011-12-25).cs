@@ -30,11 +30,11 @@ namespace Nodes
 
         string windowTitle = "Nodes";
 
-        bool drawDebug = false;
-
+        bool drawDebug = true;
 
         Color NeutralColor = new Color(100, 100, 100, 255);
-        float NeutralGrowthRate = 0.0005f;
+
+       
 
 
         SpriteFont Trebuchet;
@@ -43,14 +43,9 @@ namespace Nodes
         Texture2D blank;
 
 
-        static List<Node> nodeList;
-        static List<Player> playerList;
-        static List<Unit> unitList;
-
-        int currentLevel = 0;
-        List<List<Node>> levelData = new List<List<Node>>();
-        List<List<Player>> playerData = new List<List<Player>>();
-        
+        List<Node> nodeList;
+        List<Player> playerList;
+        List<Unit> unitList;
 
 
         int humanOwnerId = 0;
@@ -58,8 +53,8 @@ namespace Nodes
         
 
 
-        // --------------------PATHFINDING-----------------------
-        float unitStartVelocity = 0.4f;
+        // ----------PATHFINDING-------------
+        float unitStartVelocity = 0.3f;
         float maxUnitVelocity = 3;
         float maxUnitVelocitySquared;
 
@@ -69,9 +64,8 @@ namespace Nodes
          * 1 -> kinetic potential
          * 2 -> kinetic steering
          * 3 -> A*
-         * 4 -> A* steering
          */
-        int pathfindingMethod = 4;
+        int pathfindingMethod = 3;
 
 
         //--potential field
@@ -85,7 +79,7 @@ namespace Nodes
 
         //--potential steering
         Vector2[] relativeTestPoints = new Vector2[3];
-        float steerForce = 0.5f;
+        float steerForce = 0.2f;
         float brakeForce = 1;
 
 
@@ -97,36 +91,12 @@ namespace Nodes
         List<NavigationPath> navPaths;
 
 
-        //--A star steering
-        float pathSteeringTargetDistance = 80f;
-        float pathSteeringErrorMargin = 15;
-        float pathSteeringForce = 0.2f;
-
-
         //--multiple systems
         float unitRepulsionLimit = 100; //added to node radius when calculating repulsion in kinetic potential and potential field systems
         float unitRepulsionConstant = 250f; //weighting for repulsion from objects (potential field) (kinetic potential)
 
 
         List<NavigationPoint> debuglist;
-
-        //----------------END PATHFINDING-----------------
-
-
-
-        //---------------------AI--------------------------
-
-        /*
-         * 0 -> Simple (50 or more attacks smallest node)
-         * 1 -> Decision Tree
-         * 2 -> Fuzzy Logic
-         */
-        int AIMethod = 2;
-
-
-        int AIUpdatePeriod = 30;
-
-        //-------------------END AI------------------------
 
 
         MouseState previousMouseState; //holds last frame's mouse state
@@ -170,63 +140,20 @@ namespace Nodes
 
             //load level data into variables
 
-            #region level data
+            nodeList = new List<Node>();
+            nodeList.Add(new Node(new Vector2(200, 400), 50, 0, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(800, 200), 20, 1, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(900, 600), 40, 2, 0.02f, r));
+            nodeList.Add(new Node(new Vector2(300, 200), 15, 0, 0.01f, r));
+            nodeList.Add(new Node(new Vector2(600, 350), 40, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(300, 800), 27, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(550, 120), 32, -1, 0.005f, r));
+            nodeList.Add(new Node(new Vector2(700, 500), 37, 0, 0.005f, r));
 
-            //============LEVEL 1=================
-            levelData.Add(new List<Node>());
-            levelData[0].Add(new Node(new Vector2(200, 400), 50, 0, r));
-            levelData[0].Add(new Node(new Vector2(800, 200), 20, 1, r));
-            levelData[0].Add(new Node(new Vector2(900, 600), 40, 1, r));
-            levelData[0].Add(new Node(new Vector2(300, 200), 15, 1, r));
-            levelData[0].Add(new Node(new Vector2(600, 350), 10, -1, r));
-            levelData[0].Add(new Node(new Vector2(300, 550), 27, 2, r));
-            levelData[0].Add(new Node(new Vector2(550, 120), 13, -1, r));
-            levelData[0].Add(new Node(new Vector2(700, 500), 37, 0, r));
-
-            playerData.Add(new List<Player>());
-            playerData[0].Add(new Player(Color.Blue, true, true, 0.01f));
-            playerData[0].Add(new Player(Color.Purple, true, false, 0.01f));
-            playerData[0].Add(new Player(Color.Green, true, false, 0.01f));
-
-            //============LEVEL 2=================
-            levelData.Add(new List<Node>());
-            levelData[1].Add(new Node(new Vector2(100, 350), 10, 0, r));
-            levelData[1].Add(new Node(new Vector2(200, 500), 10, 1, r));
-            levelData[1].Add(new Node(new Vector2(380, 300), 10, 2, r));
-            levelData[1].Add(new Node(new Vector2(530, 400), 5, 0, r));
-            levelData[1].Add(new Node(new Vector2(690, 360), 1, -1, r));
-            levelData[1].Add(new Node(new Vector2(900, 335), 2, -1, r));
-            levelData[1].Add(new Node(new Vector2(1050, 350), 6, 0, r));
-
-            playerData.Add(new List<Player>());
-            playerData[1].Add(new Player(Color.Blue, true, true, 0.01f));
-            playerData[1].Add(new Player(Color.Purple, true, false, 0.015f));
-            playerData[1].Add(new Player(Color.Green, true, false, 0.02f));
-
-            //============LEVEL 3=================
-            levelData.Add(new List<Node>());
-            levelData[2].Add(new Node(new Vector2(200, 100), 5, 0, r));
-            levelData[2].Add(new Node(new Vector2(200, 300), 2, -1, r));
-            levelData[2].Add(new Node(new Vector2(200, 500), 1, -1, r));
-            levelData[2].Add(new Node(new Vector2(400, 100), 7, -1, r));
-            levelData[2].Add(new Node(new Vector2(400, 300), 5, -1, r));
-            levelData[2].Add(new Node(new Vector2(400, 500), 4, 1, r));
-            levelData[2].Add(new Node(new Vector2(600, 100), 9, -1, r));
-            levelData[2].Add(new Node(new Vector2(600, 300), 3, -1, r));
-            levelData[2].Add(new Node(new Vector2(600, 500), 6, -1, r));
-            levelData[2].Add(new Node(new Vector2(800, 100), 5, -1, r));
-            levelData[2].Add(new Node(new Vector2(800, 300), 2, 2, r));
-            levelData[2].Add(new Node(new Vector2(800, 500), 11, -1 , r));
-            levelData[2].Add(new Node(new Vector2(1000, 100), 2, -1, r));
-            levelData[2].Add(new Node(new Vector2(1000, 300), 5, -1, r));
-            levelData[2].Add(new Node(new Vector2(1000, 500), 4, 2, r));
-
-            playerData.Add(new List<Player>());
-            playerData[2].Add(new Player(Color.Blue, true, true, 0.01f));
-            playerData[2].Add(new Player(Color.Sienna, true, false, 0.012f));
-            playerData[2].Add(new Player(Color.Red, true, false, 0.011f));
-
-            #endregion
+            playerList = new List<Player>();
+            playerList.Add(new Player(Color.Blue, true, true));
+            playerList.Add(new Player(Color.Purple, true, false));
+            playerList.Add(new Player(Color.Green, true, false));
 
             unitList = new List<Unit>();
 
@@ -234,52 +161,13 @@ namespace Nodes
             relativeTestPoints[1] = new Vector2(25, 20);
             relativeTestPoints[2] = new Vector2(25, -20);
 
-            setLevel(currentLevel);
 
             navGraph = createNavGraph();
             navPaths = new List<NavigationPath>();
-
             
 
             //enumerate through any components and initialize them
             base.Initialize();
-        }
-
-        private void setLevel(int levelId)
-        {
-
-            if (levelId < levelData.Count)
-            {
-                //playerList = playerData[levelId];
-
-                nodeList = new List<Node>();
-
-                levelData[levelId].ForEach((item) =>
-                {
-                    nodeList.Add((Node)item.Clone());
-                });
-
-                playerList = new List<Player>();
-
-                playerData[levelId].ForEach((item) =>
-                {
-                    playerList.Add((Player)item.Clone());
-                });
-
-
-                currentLevel = levelId;
-
-
-
-                unitList = new List<Unit>();
-
-                navGraph = createNavGraph();
-                navPaths = new List<NavigationPath>();
-            }
-            else
-            {
-                throw new Exception("Level does not exist");
-            }
         }
 
         private List<GraphPoint> createNavGraph()
@@ -445,12 +333,12 @@ namespace Nodes
 
             //run game logic
             ProcessInput();
+            ProcessAI();
             UpdateUnits();
             UpdateNodes();
             CheckCollisions();
             UpdatePlayers();
-            ProcessAI();
-            
+
 
             base.Update(gameTime);
         }
@@ -461,63 +349,36 @@ namespace Nodes
             //process mouse
             currentMouseState = Mouse.GetState();
 
-            //check if mouse is clicking
-            if (currentMouseState.LeftButton == ButtonState.Pressed)
+            //check if mouse just clicked a node
+            if (currentMouseState.LeftButton == ButtonState.Pressed && previousMouseState.LeftButton != ButtonState.Pressed)
             {
-                
                 foreach (Node node in nodeList)
                 {
                     if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
                     {
-                        //mouse is clicking over a node
-                        
+                        //mouse is clicking a node
+                        Node selectedNode = getSelectedNode();
+
                         //check what we should do with the clicked node
-                        if (!node.Selected)
+                        if (selectedNode == null)
                         {
                             if (node.OwnerId == humanOwnerId)
                             {
                                 node.Selected = true;
                             }
                         }
-                        
+                        else
+                        {
+                            if (selectedNode != node && selectedNode.OwnerId == humanOwnerId)
+                            {
+                                spawnUnits(selectedNode, node);
+                            }
+                            selectedNode.Selected = false;
+                        }
+
                         //no need to check the other nodes for clicks, so break the loop
                         break;
                     }
-                }
-            }
-
-            //check if mouse just stopped clicking
-            else if (previousMouseState.LeftButton == ButtonState.Pressed && currentMouseState.LeftButton != ButtonState.Pressed)
-            {
-                List<Node> selectedNodes = getSelectedNodes();
-
-                foreach (Node node in nodeList)
-                {
-                    if (CheckPointCircleCollision(new Vector2(currentMouseState.X, currentMouseState.Y), node.Position, node.CalcNodeRadius()))
-                    {
-                        //mouse stopped dragging over a node
-                        Node targetNode = node;
-
-                        foreach (Node selectedNode in selectedNodes)
-                        {
-                            if (targetNode != selectedNode)
-                            {
-                                if (selectedNode.OwnerId == humanOwnerId)
-                                {
-                                    spawnUnits(selectedNode, targetNode);
-                                }
-                            }
-                        }
-
-
-                        //no need to check the other nodes, so break the loop
-                        break;
-                    }
-                }
-
-                foreach (Node selectedNode in selectedNodes)
-                {
-                    selectedNode.Selected = false;
                 }
             }
 
@@ -531,496 +392,38 @@ namespace Nodes
         {
             foreach (Player player in playerList)
             {
-                if (!player.IsHuman && player.IsAlive)
+                if (!player.IsHuman)
                 {
-                    if ((int)r.Next(1, AIUpdatePeriod) == 1)
-                    {
-                        switch (AIMethod)
-                        {
-                            case 0:
-                                simpleAI(player);
-                                break;
-                            case 1:
-                                decisionTreeAI(player);
-                                break;
-                            case 2: fuzzyLogicAI(player);
-                                break;
-                        }
-                    }
-                }
-            }
-        }
-
-        private void simpleAI(Player player)
-        {
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId != -1)
-                {
-                    if (player == playerList[node.OwnerId] && node.UnitCount > 50)
-                    {
-                        spawnUnits(node, getNetWeakestEnemyNode(player));
-                    }
-                }
-            }
-        }
-
-        private Node getNetWeakestEnemyNode(Player player)
-        {
-            Node output = null;
-            int smallestNum = 5000;
-
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId == -1 || playerList[node.OwnerId] != player)
-                {
-                    int unitNum = getNetUnitCount(node);
-
-                    if (output == null || smallestNum > unitNum)
-                    {
-                        output = node;
-                        smallestNum = unitNum;
-                    }
-                }
-            }
-            return output;
-        }
-
-        //returns a list of the n smallest enemy nodes by net size
-        private List<Node> getNetWeakestEnemyNodes(Player player, int number)
-        {
-            List<Node> output = new List<Node>();
-            List<Node> enemyNodes = new List<Node>();
-
-            //get enemy nodes
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId == -1 || playerList[node.OwnerId] != player)
-                {
-                    enemyNodes.Add(node);
-                }
-            }
-            if (enemyNodes.Count == 0)
-            {
-                return null;
-            }
-
-            //get nth smallest enemy node
-            Node nthSmallest = getNthNetSmallestNode(enemyNodes, number);
-            int nthSmallestCount = getNetUnitCount(nthSmallest);
-            //get nodes smaller than nthSmallest
-
-            foreach (Node node in enemyNodes)
-            {
-                if (getNetUnitCount(node) <= nthSmallestCount)
-                {
-                    output.Add(node);
-                }
-            }
-            output.Add(nthSmallest);
-
-            return output;
-        }
-
-        //gets the nth smallest node in a list
-        //http://pine.cs.yale.edu/pinewiki/QuickSelect
-        private Node getNthNetSmallestNode(List<Node> list, int n)
-        {
-            int p;
-            if (list.Count == 1)
-            {
-                p = 0;
-            }
-            else
-            {
-                p = (int)Math.Round((double)r.Next(0, list.Count - 1));
-            }
-            Node pivotNode = list[p];
-            int pivot = getNetUnitCount(pivotNode);
-            List<Node> A1 = new List<Node>();
-            List<Node> A2 = new List<Node>();
-            
-            //split into a pile A1 of small elements and A2 of big elements
-            for (int i = 0; i < list.Count; i++)
-            {
-                if (getNetUnitCount(list[i]) < pivot)
-                {
-                    A1.Add(list[i]);
-                }
-                else if(getNetUnitCount(list[i]) > pivot)
-                {
-                    A2.Add(list[i]);
-                }
-            }
-
-            if(n <= A1.Count){
-                //it's in the pile of smallest elements
-                return getNthNetSmallestNode(A1, n);
-            }
-            else if (n > list.Count - A2.Count)
-            {
-                //it's in the pile of biggest elements
-                return getNthNetSmallestNode(A2, n - (list.Count - A2.Count));
-            }
-            else
-            {
-                //it's equal to the pivot
-                return pivotNode;
-            }
-        }
-
-        //gets the unit count of a given node, taking into account any enemy or friendly units on their way to that node
-        public static int getNetUnitCount(Node node)
-        {
-            int unitCount = node.UnitCount;
-
-            if (node.OwnerId != -1)
-            {
-                //make unit count take into account friendly troops on their way to reinforce or enemy troops on their way to attack
-                foreach (Unit unit in unitList)
-                {
-                    if (unit.DestinationId == getNodeId(node))
-                    {
-                        if (node.OwnerId == unit.OwnerId)
-                        {
-                            unitCount += 1;
-                        }
-                        else
-                        {
-                            unitCount -= 1;
-                        }
-                    }
-                }
-            }
-
-            //return absolute value in case node is about to be captured (value will be negative)
-            return Math.Abs(unitCount);
-        }
-
-        private Node getNetWeakestFriendlyNode(Player player)
-        {
-            Node output = null;
-            int smallestNum = 500;
-
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId != -1 && playerList[node.OwnerId] == player)
-                {
-                    int unitNum = getNetUnitCount(node);
-
-                    if (output == null || smallestNum > unitNum)
-                    {
-                        output = node; //poo
-                        smallestNum = unitNum;
-                    }
-                }
-            }
-            return output;
-        }
-
-        private Node getNetStrongestFriendlyNode(Player player)
-        {
-            Node output = null;
-            int biggestNum = 0;
-
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId != -1 && playerList[node.OwnerId] == player)
-                {
-                    int unitNum = getNetUnitCount(node);
-
-                    if (output == null || biggestNum < unitNum)
-                    {
-                        output = node;
-                        biggestNum = unitNum;
-                    }
-                }
-            }
-            return output;
-        }
-
-
-        private int getTeamSize(int playerId)
-        {
-            if (playerId == -1)
-            {
-                return 0;
-            }
-            int output = 0;
-            foreach (Node node in nodeList)
-            {
-                if (node.OwnerId == playerId)
-                {
-                    output += node.UnitCount;
-                }
-            }
-            foreach (Unit unit in unitList)
-            {
-                if (unit.OwnerId == playerId)
-                {
-                    output += 1;
-                }
-            }
-            return output;
-        }
-
-
-        private void decisionTreeAI(Player player)
-        {
-            bool defending = false;
-            Node smallestNode = getNetWeakestFriendlyNode(player);
-
-            //check for nodes that need defending
-            if (smallestNode != null)
-            {
-                int thresholdWeakness = 10;
-                int safeThreshold = 15;
-                int attackThreshold = 30;
-
-                int smallestNodeUnitCount = getNetUnitCount(smallestNode);
-
-                if (smallestNodeUnitCount < thresholdWeakness)
-                {
-                    //one of my nodes is too small or is being attacked by a dangerous amount of units
-                    defending = true;
-
-                    //get a list of other nodes that are big enough to reinforce the small node
-                    List<Node> reinforcementList = new List<Node>();
                     foreach (Node node in nodeList)
                     {
-                        if (node.OwnerId >= 0 && playerList[node.OwnerId] == player && getNetUnitCount(node) > attackThreshold)
+                        if (node.OwnerId != -1)
                         {
-                            reinforcementList.Add(node);
+                            if (player == playerList[node.OwnerId] && node.UnitCount > 50)
+                            {
+                                spawnUnits(node, getWeakestEnemyNode(player));
+                            }
                         }
                     }
-
-                    //if we have any nodes with spare units
-                    if (reinforcementList.Count > 0)
-                    {
-                        //order by distance from smallestNode
-                        reinforcementList.Sort((x, y) => (x.Position - smallestNode.Position).LengthSquared().CompareTo((y.Position - smallestNode.Position).LengthSquared()));
-
-
-                        //send units until smallestNode above safeThreshold
-                        int i = 0;
-                        while (smallestNodeUnitCount < safeThreshold && i < reinforcementList.Count)
-                        {
-                            smallestNodeUnitCount += (int)Math.Floor(attackProportion * reinforcementList[i].UnitCount);
-                            spawnUnits(reinforcementList[i], smallestNode);
-                            i++;
-                        }
-                    }
-                    return;
                 }
-            }
-
-
-            if (!defending)
-            {
-
-
-                //TEMPORARY
-                float rand = (float)r.NextDouble();
-                if (rand < 0.2)
-                {
-                    Node target = getNetWeakestEnemyNode(player);
-                    Node source = getNetStrongestFriendlyNode(player);
-
-                    if (target.UnitCount < source.UnitCount / 2)
-                    {
-                        spawnUnits(source, target);
-                    }
-                }
-
-
-
-                // TODO-----------------------------------------------------------------------------------
-
-
-
-
-
-
-
-                //check for any good nodes to attack
             }
         }
 
-
-        private void fuzzyLogicAI(Player player)
+        private Node getWeakestEnemyNode(Player player)
         {
-            bool defending = false;
-            Node smallestNode = getNetWeakestFriendlyNode(player);
-            Node targetNode = null;
-
-            float sizeBias = 1;
-            float teamSizeBias = 0.01f;
-            float randomBias = 5;
-
-            //int attackScoreThreshold = 30 + (int)r.Next(-5, 5);
-            int attackThreshold = 25 + (int)r.Next(-10, 10);
-            int thresholdWeakness = 10 + (int)r.Next(-2, 2);
-            int safeThreshold = 15 + (int)r.Next(-3, 3);
-            int captureThreshold = -5 + (int)r.Next(-3, 4);
-
-
-            //---------try to aquire a target (friendly or enemy)
-            if (smallestNode != null)
-            {
-
-                int smallestNodeUnitCount = getNetUnitCount(smallestNode);
-
-                if (smallestNodeUnitCount < thresholdWeakness)
-                {
-                    //one of my nodes is too small or is being attacked by a dangerous amount of units
-                    defending = true;
-                    targetNode = smallestNode;
-                }
-
-            }
-
-            //only consider enemy nodes if not already reinforcing a friendly node (defending outweighs attacking)
-            if (!defending)
-            {
-                //------find the best enemy target
-                List<Node> targetList = getNetWeakestEnemyNodes(player, 3);
-                List<float> targetScores = new List<float>();
-
-                //score each node (smaller -> weaker)
-                foreach (Node node in targetList)
-                {
-                    float score = getNetUnitCount(node) * sizeBias;
-                    score += getTeamSize(node.OwnerId) * teamSizeBias;
-                    score += r.Next(0, 1) * randomBias;
-                    targetScores.Add(score);
-                }
-
-                //get weakest node
-                float smallestScore = -1;
-                for (int i = 0; i < targetList.Count; i++)
-                {
-                    if (smallestScore == -1 || targetScores[i] < smallestScore)
-                    {
-                        targetNode = targetList[i];
-                        smallestScore = targetScores[i];
-                    }
-                }
-
-                //check if attack is wise
-                //if (smallestScore > attackScoreThreshold)
-                //{
-                //    return;
-                //}
-
-            }
-            //------END target selection
-
-
-            //---------find best combination of source nodes for attack/reinforcement
-
-            //get list of friendly nodes, order by size descending
-            List<Node> sourceList = new List<Node>();
+            Node output = null;
             foreach (Node node in nodeList)
             {
-                if (node.OwnerId != -1 && playerList[node.OwnerId] == player && getNetUnitCount(node) > attackThreshold)
+                if (node.OwnerId == -1 || playerList[node.OwnerId] != player)
                 {
-                    //add node to sourcelist in the right index to produce an ordered list
-                    if (sourceList.Count == 0)
+                    if (output == null || output.UnitCount > node.UnitCount)
                     {
-                        sourceList.Add(node);
-                    }
-                    else if (getNetUnitCount(sourceList[sourceList.Count - 1]) < getNetUnitCount(node))
-                    {
-                        sourceList.Add(node);
-                    }
-                    NodeComparer NC = new NodeComparer();
-                    int index = sourceList.BinarySearch(node, NC);
-                    if (index < 0)
-                    {
-                        sourceList.Insert(~index, node);
+                        output = node;
                     }
                 }
             }
-            //reverse the list to put in descending order
-            sourceList.Reverse();
-
-
-            int targetSize = getNetUnitCount(targetNode);
-
-            if (defending)
-            {
-                //keep adding units from source list until target above safe threshold or we run out of reinforcers
-
-                for (int i = 0; i < sourceList.Count; i++)
-                {
-                    targetSize += sourceList[i].UnitCount / 2;
-                    spawnUnits(sourceList[i], targetNode);
-
-                    if (targetSize >= safeThreshold)
-                    {
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                //keep adding units from source list until target captured
-                int n = 0;
-
-                for (int i = 0; i < sourceList.Count; i++)
-                {
-                    targetSize -= sourceList[i].UnitCount / 2;
-                    n++;
-
-                    if (targetSize < captureThreshold)
-                    {
-                        //we can capture the node using the top n friendly nodes
-                        break;
-                    }
-                }
-
-                if (targetSize < captureThreshold)
-                {
-                    for (int i = 0; i < n; i++)
-                    {
-                        spawnUnits(sourceList[i], targetNode);
-                    }
-                }
-                else
-                {
-                    //we're not strong enough to capture the node, abort
-                    return;
-                }
-            }
-
-
-
-
-
+            return output;
         }
-        
 
-        
-
-        private static int compareDistances(Vector2 x, Vector2 y, Vector2 p)
-        {
-            float xDist2 = (p - x).LengthSquared();
-            float yDist2 = (p - y).LengthSquared();
-            if (xDist2 < yDist2)
-            {
-                //x is closer
-                return -1;
-            }
-            else if (xDist2 > yDist2)
-            {
-                //y is closer
-                return 1;
-            }
-            else
-            {
-                return 0;
-            }
-        }
 
 
         private void UpdateUnits()
@@ -1038,9 +441,6 @@ namespace Nodes
                     break;
                 case 3:
                     AStarPaths();
-                    break;
-                case 4:
-                    AStarSteeringPaths();
                     break;
             }
 
@@ -1342,78 +742,6 @@ namespace Nodes
         }
 
 
-        private void AStarSteeringPaths()
-        {
-            foreach (Unit unit in unitList)
-            {
-                NavigationPath navPath = navPaths[unit.AStarPathId];
-                Vector2 heading = unit.Velocity;
-                heading.Normalize();
-                Vector2 target = heading * pathSteeringTargetDistance + unit.Position;
-
-                float shortestDistance = 10000;
-                int nearestSegment = 0;
-
-                for (int i = 0; i < navPath.Points.Count - 1; i++)
-                {
-                    Vector2 point1 = navPath.Points[i];
-                    Vector2 point2 = navPath.Points[i + 1];
-
-                    float dist = calcPointLineDistance(point1, point2, target);
-                    if (dist < shortestDistance)
-                    {
-                        nearestSegment = i;
-                        shortestDistance = dist;
-                    }
-                }
-
-                if (CheckPointCircleCollision(unit.Position, navPath.Points[nearestSegment + 1], 50))
-                {
-                    //if the end is very close just steer straight for it
-                    unit.Velocity *= unitFriction;
-                    Vector2 steerVector = navPath.Points[nearestSegment + 1] - unit.Position;
-                    steerVector.Normalize();
-                    unit.Velocity += steerVector * 0.5f;
-                }
-                else if (shortestDistance > pathSteeringErrorMargin)
-                {
-
-                    //find which way to steer
-                    bool steerLeft = isLeft(navPath.Points[nearestSegment], navPath.Points[nearestSegment + 1], target);
-
-
-                    Vector2 steerVector;
-
-                    //steer
-                    if (steerLeft)
-                    {
-                        steerVector = rotateVector2(unit.Velocity, (float)-Math.PI / 2);
-                    }
-                    else
-                    {
-                        steerVector = rotateVector2(unit.Velocity, (float)Math.PI / 2);
-                    }
-
-                    steerVector.Normalize();
-                    unit.Velocity += steerVector * pathSteeringForce;
-
-                }
-
-                unit.Velocity += heading * 0.02f;
-
-                //make sure velocity doesn't go above the maximum
-                if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
-                {
-                    Vector2 dir = unit.Velocity;
-                    dir.Normalize();
-                    unit.Velocity = dir * maxUnitVelocity;
-                }
-
-                unit.Position += unit.Velocity;
-            }
-        }
-
-
         private void buildAStarPath(Node source, Node destination)
         {
             if (getAStarPathId(source, destination) == -1)
@@ -1667,14 +995,7 @@ namespace Nodes
             foreach (Node node in nodeList)
             {
                 //update unit build progress
-                if (node.OwnerId >= 0)
-                {
-                    node.UnitProgress += playerList[node.OwnerId].GrowthRate;
-                }
-                else
-                {
-                    node.UnitProgress += NeutralGrowthRate;
-                }
+                node.UnitProgress += node.BuildSpeed;
             }
         }
 
@@ -1685,24 +1006,7 @@ namespace Nodes
 
         private void UpdatePlayers()
         {
-            bool allEnemiesDead = true;
-            foreach (Player player in playerList)
-            {
-                if (!player.IsHuman && player.IsAlive)
-                {
-                    allEnemiesDead = false;
-                    break;
-                }
-            }
 
-            if(allEnemiesDead)
-            {
-                setLevel(currentLevel + 1);
-            }
-            else if (!playerList[humanOwnerId].IsAlive)
-            {
-                setLevel(currentLevel);
-            }
         }
 
 
@@ -1804,13 +1108,10 @@ namespace Nodes
         private void DrawUI()
         {
             //if a node is selected, draw a line from it to the mouse
-            List<Node> selectedNodes = getSelectedNodes();
-            if (selectedNodes.Count != 0)
+            Node selectedNode = getSelectedNode();
+            if (selectedNode != null)
             {
-                foreach (Node selectedNode in selectedNodes)
-                {
-                    DrawLine(blank, 2f, Color.White, selectedNode.Position, new Vector2(currentMouseState.X, currentMouseState.Y));
-                }
+                DrawLine(blank, 2f, Color.White, selectedNode.Position, new Vector2(currentMouseState.X, currentMouseState.Y));
             }
 
 
@@ -1826,7 +1127,7 @@ namespace Nodes
                         DrawNodeBorder(node, Color.White, 2);
 
                     }
-                    else if (selectedNodes.Count != 0 && node.OwnerId != humanOwnerId)
+                    else if (selectedNode != null && node.OwnerId != humanOwnerId)
                     {
                         //node doesn't belong to player but player has already selected a node, so border the node
                         DrawNodeBorder(node, Color.White, 2);
@@ -1850,7 +1151,7 @@ namespace Nodes
 
         private void DrawDebug()
         {
-            if (pathfindingMethod == 3 || pathfindingMethod == 4)
+            if (pathfindingMethod == 3)
             {
                 foreach (GraphPoint point in navGraph)
                 {
@@ -2029,12 +1330,12 @@ namespace Nodes
         /// <param name="destinationNode">The destination node for the units</param>
         private void spawnUnits(Node sourceNode, Node destinationNode)
         {
-            //check journey is valid and has enough units to send
-            if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1 && sourceNode != destinationNode)
+            //check source is valid and has enough units to send
+            if (sourceNode != null && destinationNode != null && sourceNode.UnitCount > 1)
             {
                 int pathId = -1;
                 //if we're using A*, build the path
-                if (pathfindingMethod == 3 || pathfindingMethod == 4)
+                if (pathfindingMethod == 3)
                 {
                     buildAStarPath(sourceNode, destinationNode);
                     pathId = getAStarPathId(sourceNode, destinationNode);
@@ -2057,32 +1358,21 @@ namespace Nodes
                 for (int i = 0; i < numUnits; i++)
                 {
                     //work out a random place on the circle to spawn this unit on
-                    float angleToDest = (float)Math.Atan2((destinationNode.Position.Y - sourceNode.Position.Y) , (destinationNode.Position.X - sourceNode.Position.X));
-                    float angle;
-
-                    if (pathfindingMethod == 4)
-                    {
-                        angle = angleToDest + (float)(r.NextDouble() * Math.PI - Math.PI / 2);
-                    }
-                    else
-                    {
-                        angle = (float)(r.NextDouble() * Math.PI*2);
-                    }
-
+                    float angle = (float)(r.NextDouble() * Math.PI * 2);
                     float relativeX = (float)(radius * Math.Cos(angle));
                     float relativeY = (float)(radius * Math.Sin(angle));
                     float x = sourceNode.Position.X + relativeX;
                     float y = sourceNode.Position.Y + relativeY;
 
                     //add an initial velocity directly away from the source node
-                    float xVel = relativeX * unitStartVelocity * ((float)r.NextDouble());
-                    float yVel = relativeY * unitStartVelocity * ((float)r.NextDouble());
+                    float xVel = relativeX * unitStartVelocity;
+                    float yVel = relativeY * unitStartVelocity;
 
                     //make the unit 
                     Unit newUnit = new Unit(sourceNode.OwnerId, new Vector2(x, y), new Vector2(xVel, yVel), getNodeId(destinationNode), getNodeId(sourceNode));
 
                     //set up paths for A*
-                    if (pathfindingMethod == 3 || pathfindingMethod == 4)
+                    if (pathfindingMethod == 3)
                     {
                         newUnit.AStarPathId = pathId;
                         newUnit.AStarPathProgress = (float)r.NextDouble() * -25;
@@ -2109,43 +1399,17 @@ namespace Nodes
 
             if (attackingUnit.OwnerId != defendingNode.OwnerId)
             {
-                //if enemy node attack
                 if (defendingNode.UnitCount == 1)
                 {
-                    //node taken over
-
-                    if (defendingNode.OwnerId != -1)
-                    {
-                        //check if this is the defender's last node, if so then set their IsAlive status to false
-                        int nodeCount = 0;
-                        foreach (Node node in nodeList)
-                        {
-                            if (node.OwnerId == defendingNode.OwnerId)
-                            {
-                                nodeCount++;
-                            }
-                        }
-                        if (nodeCount == 1)
-                        {
-                            playerList[defendingNode.OwnerId].IsAlive = false;
-                        }
-                    }
-                    //set node to attacker's
                     defendingNode.OwnerId = attackingUnit.OwnerId;
-
-                    //unselect the node if it is selected
-                    defendingNode.Selected = false;
-
                 }
                 else
                 {
-                    //node unitcount reduced by one
                     defendingNode.UnitCount -= 1;
                 }
             }
             else
             {
-                //if friendly node reinforce
                 defendingNode.UnitCount += 1;
             }
         }
@@ -2155,7 +1419,7 @@ namespace Nodes
         /// Returns a node's position in nodeList given the node object (uses node's x and y to identify it)
         /// </summary>
         /// <param name="node">Node to identify.</param>
-        public static int getNodeId(Node node)
+        public int getNodeId(Node node)
         {
             int id = nodeList.FindIndex(
                 delegate(Node comparedNode)
@@ -2171,20 +1435,16 @@ namespace Nodes
         /// <summary>
         /// Returns the first node in nodeList whose Selected field = true
         /// </summary>
-        private List<Node> getSelectedNodes()
+        private Node getSelectedNode()
         {
-            List<Node> nodes = new List<Node>();
-
             foreach (Node node in nodeList)
             {
                 if (node.Selected)
                 {
-                    nodes.Add(node);
+                    return node;
                 }
             }
-
-            return nodes;
-            
+            return null;
         }
 
 
@@ -2224,17 +1484,9 @@ namespace Nodes
       
 
         // credit: http://stackoverflow.com/questions/3461453/determine-which-side-of-a-line-a-point-lies
-        public bool isLeft(Vector2 linePoint1, Vector2 linePoint2, Vector2 point)
+        public bool isLeft(Vector2 a, Vector2 b, Vector2 c)
         {
-            return ((linePoint2.X - linePoint1.X) * (point.Y - linePoint1.Y) - (linePoint2.Y - linePoint1.Y) * (point.X - linePoint1.X)) > 0;
-        }
-
-        public bool isBeyondEnd(Vector2 startPoint, Vector2 endPoint, Vector2 point)
-        {
-            Vector2 line = endPoint - startPoint;
-            Vector2 line2 = rotateVector2(line, (float)Math.PI / 2);
-
-            return isLeft(endPoint, endPoint - line2, point);
+            return ((b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X)) > 0;
         }
 
 
@@ -2279,8 +1531,6 @@ namespace Nodes
         }
 
 
-
-
         public GraphPoint findClosestGraphPoint(Vector2 pos, float boundBoxRadius)
         {
             Vector2 lowerBound = new Vector2(pos.X - boundBoxRadius, pos.Y - boundBoxRadius);
@@ -2322,31 +1572,5 @@ namespace Nodes
         #endregion
 
 
-    }
-
-
-
-    public class NodeComparer : IComparer<Node>
-    {
-        
-        public int Compare(Node a, Node b)
-        {
-            int x = NodesGame.getNetUnitCount(a);
-            int y = NodesGame.getNetUnitCount(b);
-
-            if (x > y)
-            {
-                return 1;
-            }
-            else if (y > x)
-            {
-                return -1;
-            }
-            else
-            {
-                return 0;
-            }
-        
-        }
     }
 }
