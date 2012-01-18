@@ -586,7 +586,12 @@ namespace Nodes
             return output;
         }
 
-        //returns a list of the n smallest enemy nodes by net size
+        
+        /// <summary>
+        /// Returns a list of the n smallest enemy nodes by net size
+        /// </summary>
+        /// <param name="player">'Friendly' player</param>
+        /// <param name="number">Target number of nodes to return (may return more or less if nodes tie in size or there are less enemy nodes than 'number')</param>
         private List<Node> getNetWeakestEnemyNodes(Player player, int number)
         {
             List<Node> output = new List<Node>();
@@ -605,8 +610,21 @@ namespace Nodes
                 return null;
             }
 
+            //return the whole list if it's the right length
+            if (enemyNodes.Count == number)
+            {
+                return enemyNodes;
+            }
+
+            //check we aren't trying to return more nodes than are present.
+            if (enemyNodes.Count < number)
+            {
+                number = enemyNodes.Count;
+            }
+
             //get nth smallest enemy node
             Node nthSmallest = getNthNetSmallestNode(enemyNodes, number);
+
             int nthSmallestCount = getNetUnitCount(nthSmallest);
             //get nodes smaller than nthSmallest
 
@@ -629,7 +647,7 @@ namespace Nodes
             int p;
             if (list.Count == 1)
             {
-                p = 0;
+                return list[0];
             }
             else
             {
@@ -1260,28 +1278,6 @@ namespace Nodes
                     }
                 }
 
-                /*
-                //bounce off nodes
-                foreach (Node node in nodeList)
-                {
-                    //don't repel from destination
-                    if (node != destination)
-                    {
-                        direction = new Vector2(unit.Position.X - node.Position.X, unit.Position.Y - node.Position.Y);
-
-                        float distanceSquared = (node.Position - unit.Position).LengthSquared();
-                        float nodeRadius = node.CalcNodeRadius();
-
-                        if (distanceSquared < nodeRadius * nodeRadius)
-                        {
-                            //bounce if colliding
-                            unit.Velocity += direction * 1000f;
-                        }
-                        
-                    }
-                }*/
-                
-
                  //make sure velocity doesn't go above the maximum
                 if (unit.Velocity.LengthSquared() > maxUnitVelocitySquared)
                 {
@@ -1291,8 +1287,6 @@ namespace Nodes
                 }
 
                 
-
-
 
                 //update position
                 unit.Position += unit.Velocity;
